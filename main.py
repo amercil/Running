@@ -16,10 +16,21 @@ def parse_time(time_str):
     except:
         return 0
 
+def calculate_xc_splits(predicted_5k_sec):
+    # A 5k is exactly 3.10686 miles
+    avg_mile = predicted_5k_sec / 3.10686
+    
+    # XC Racing Algorithm
+    mile_1 = avg_mile - 5  # Get out fast to establish position
+    mile_2 = avg_mile + 5  # Settle in / Handle the hills
+    mile_3 = avg_mile      # Push the threshold
+    
+    return format_time(mile_1), format_time(mile_2), format_time(mile_3)
+
 # --- UI FRONTEND (The Dashboard) ---
 st.title("🏃‍♂️ The Lactic Lab")
-st.subheader("Varsity Pack Analyzer")
-st.write("Upload your team roster to calculate course-adjusted 5k predictions and Varsity scoring metrics.")
+st.subheader("Varsity Pack Analyzer & Pacing")
+st.write("Upload your team roster to calculate course-adjusted 5k predictions and target race splits.")
 
 st.divider()
 
@@ -27,7 +38,6 @@ st.divider()
 uploaded_file = st.file_uploader("Upload your team roster (CSV)", type=["csv"])
 
 if uploaded_file is not None:
-    # Read and display the data
     team_data = pd.read_csv(uploaded_file)
     st.success("Roster successfully loaded!")
     st.dataframe(team_data, use_container_width=True)
@@ -39,15 +49,11 @@ if uploaded_file is not None:
         
         team_runners = []
         
-        # Loop through the uploaded Pandas dataframe row by row
         for index, row in team_data.iterrows():
             name = row['Name']
             time_1600 = parse_time(row['1600m'])
-            
-            # Default to 1.0 if the column is missing or blank
             course_rating = float(row.get('Course_Rating', 1.0)) 
             
-            # The Prediction Math
             if time_1600 > 0:
                 predicted_track_5k = time_1600 * 3.3
                 predicted_xc_5k = predicted_track_5k * course_rating
@@ -57,27 +63,43 @@ if uploaded_file is not None:
                     'predicted_5k': predicted_xc_5k
                 })
         
-        # --- VARSITY SCORING ALGORITHM ---
-        
-        # Sort fastest to slowest
+        # --- VARSITY SCORING ---
         team_runners.sort(key=lambda x: x['predicted_5k'])
-        
-        # Slice the top 5
         varsity_squad = team_runners[:5]
         
-        # Display the Varsity Squad using columns for a cool UI layout
         st.subheader("🏆 Predicted Varsity Squad")
         cols = st.columns(5)
         
         for i, runner in enumerate(varsity_squad):
             with cols[i]:
-                # st.metric creates large, bold numbers on the dashboard
                 st.metric(label=f"#{i+1} Runner", 
                           value=runner['name'], 
                           delta=format_time(runner['predicted_5k']),
                           delta_color="off")
         
-        # Calculate and Display Team Metrics
+        # --- NEW: RACE EXECUTION PLAN ---
+        st.divider()
+        st.subheader("⏱️ Varsity Race Execution Plan")
+        st.write("Target splits based on an aggressive Mile 1 start and settling into threshold pace.")
+        
+        pacing_data = []
+        
+        for runner in varsity_squad:
+            m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'])
+            
+            pacing_data.append({
+                "Athlete": runner['name'],
+                "Target Finish": format_time(runner['predicted_5k']),
+                "Mile 1 (Fast Start)": m1,
+                "Mile 2 (Settle)": m2,
+                "Mile 3 (Kick)": m3
+            })
+            
+        # Convert our pacing data into a sleek Pandas dataframe and display it
+        pacing_df = pd.DataFrame(pacing_data)
+        st.dataframe(pacing_df, use_container_width=True)
+        
+        # --- TEAM METRICS ---
         if len(varsity_squad) >= 5:
             st.divider()
             st.subheader("📊 Team Metrics")
@@ -88,7 +110,6 @@ if uploaded_file is not None:
             
             st.metric(label="1-to-5 Pack Split", value=format_time(pack_split))
             
-            # AI Coaching Logic
             if pack_split <= 60:
                 st.success("**Analysis: ELITE.** A sub-60 second split is State-Championship caliber.")
             elif pack_split <= 120:
