@@ -120,9 +120,13 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
 st.set_page_config(page_title="The Lactic Lab | Windsor XC", page_icon="🏃‍♂️", layout="wide")
 
 # --- BRANDED SIDEBAR ---
-if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", use_container_width=True)
-else:
+try:
+    if os.path.exists("logo.png"):
+        st.sidebar.image("logo.png", use_container_width=True)
+    else:
+        st.sidebar.markdown("## 🧙‍♂️ Windsor XC")
+except Exception:
+    # If the image file is corrupted or unreadable, fall back to text instead of crashing
     st.sidebar.markdown("## 🧙‍♂️ Windsor XC")
 
 st.sidebar.markdown("*\"To give anything less than your best is to sacrifice the gift.\"* - Pre")
