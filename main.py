@@ -30,16 +30,12 @@ def calculate_composite_5k(t800, t1600, t3200, t5k):
     elif track_fitness > 0: return track_fitness
     else: return 0 
 
-# --- UPGRADED: COURSE-SPECIFIC PACING ---
 def calculate_xc_splits(predicted_5k_sec, pace_offsets):
     if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
     avg_mile = predicted_5k_sec / 3.10686
-    
-    # Apply the course-specific terrain adjustments
     m1 = avg_mile + pace_offsets[0]
     m2 = avg_mile + pace_offsets[1]
     m3 = avg_mile + pace_offsets[2]
-    
     return format_time(m1), format_time(m2), format_time(m3)
 
 def calculate_training_paces(predicted_5k_sec):
@@ -95,15 +91,13 @@ def standardize_roster(df):
             
     return norm_df
 
-# --- UPGRADED: COLORADO COURSE DATABASE WITH TERRAIN OFFSETS ---
-# Format: "Course Name": {"mult": Speed Multiplier, "splits": [Mile 1 offset, Mile 2 offset, Mile 3 offset]}
 CO_COURSES = {
     "Standard Course (Average)": {"mult": 1.00, "splits": [-5, 5, 0]},
     "Liberty Bell (Blazing Fast)": {"mult": 0.98, "splits": [-10, 0, 10]}, 
-    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]}, # Brutal uphill mile 2
+    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]},
     "St. Vrain Invitational": {"mult": 1.01, "splits": [0, 5, -5]},
-    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]}, # Even pacing all the way
-    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]} # Conservative start, strong finish
+    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]},
+    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]}
 }
 
 def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
@@ -128,8 +122,6 @@ st.title("🏃‍♂️ The Lactic Lab")
 # --- SIDEBAR CONTROLS (Global) ---
 st.sidebar.header("📍 Course Selection")
 selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
-
-# Extract both multiplier and pace strategy from the new dictionary
 course_multiplier = CO_COURSES[selected_course]["mult"]
 course_pace_strategy = CO_COURSES[selected_course]["splits"]
 
@@ -144,7 +136,8 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-tab1, tab2 = st.tabs(["📊 Team Analytics & Scouting", "🎯 Sub-X Goal Setter"])
+# NEW: We added a third tab to the layout!
+tab1, tab2, tab3 = st.tabs(["📊 Team Analytics & Scouting", "🎯 Sub-X Goal Setter", "📅 Summer Training Plan"])
 
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
@@ -188,7 +181,6 @@ with tab1:
                     st.subheader(f"⏱️ Varsity Race Execution: {selected_course}")
                     pacing_data = []
                     for runner in varsity_squad:
-                        # Pass the course-specific pacing strategy into the split calculator!
                         m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'], course_pace_strategy)
                         pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
                     pacing_df = pd.DataFrame(pacing_data)
@@ -270,3 +262,73 @@ with tab2:
             st.metric("3200m Fitness Required", t3200)
         
         st.info("💡 **Coach's Note:** They don't necessarily need to hit *all three* of these times, but they need an equivalent aerobic mix that averages out to these benchmarks.")
+
+# ==========================================
+# TAB 3: SUMMER TRAINING PLAN (NEW)
+# ==========================================
+with tab3:
+    st.header("📅 Summer Base Phase Calendar")
+    st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
+    
+    st.divider()
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.subheader("1. Download the Template")
+        st.write("If you don't have a plan set up yet, download this CSV template. Your coach can edit it in Excel or Google Sheets and pass it back to you.")
+        
+        # We generate a dummy template on the fly for them to download
+        template_df = pd.DataFrame({
+            "Date": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-07"],
+            "Type": ["Easy Run", "Workout", "Recovery", "Easy Run", "Rest", "Long Run", "Rest"],
+            "Miles": [5, 7, 4, 6, 0, 10, 0],
+            "Coach's Notes": ["Conversational pace.", "6x800m @ 5k pace. Track.", "Very light jogging.", "Aerobic effort.", "Take the day off.", "Hilly route today.", "Off day."]
+        })
+        csv_template = template_df.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Download CSV Template", data=csv_template, file_name="summer_training_template.csv", mime="text/csv")
+        
+    with col2:
+        st.subheader("2. Upload Your Plan")
+        plan_file = st.file_uploader("Upload Training Plan (CSV)", type=["csv"], key="training_plan")
+
+    if plan_file is not None:
+        st.divider()
+        plan_df = pd.read_csv(plan_file)
+        
+        # Clean up column names in case the coach used lowercase
+        plan_df.columns = [str(c).strip().title() for c in plan_df.columns]
+        
+        if 'Date' in plan_df.columns and 'Miles' in plan_df.columns:
+            try:
+                # Convert the raw dates into actual Python Datetime objects
+                plan_df['Date Object'] = pd.to_datetime(plan_df['Date'])
+                plan_df = plan_df.sort_values(by="Date Object")
+                
+                # Format dates to be highly readable (e.g., "Mon, Jun 01")
+                plan_df['Date'] = plan_df['Date Object'].dt.strftime('%a, %b %d')
+                
+                # Figure out what week of the year it is for grouping
+                plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
+                
+                # Drop the behind-the-scenes calculation columns for the clean display
+                display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
+                
+                st.subheader("🗓️ Daily Training Schedule")
+                st.dataframe(display_df, use_container_width=True)
+                
+                st.divider()
+                
+                st.subheader("📈 Weekly Mileage Progression")
+                # Group all the miles together by the week number
+                weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
+                # Rename the internal Week 22, 23, etc. to just Week 1, Week 2
+                weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
+                
+                chart_df = weekly_miles.set_index('Week')
+                st.bar_chart(chart_df['Miles'], color="#3366cc")
+                
+            except Exception:
+                st.error("⚠️ There was an issue reading the dates. Please make sure your 'Date' column uses a standard format like YYYY-MM-DD or MM/DD/YYYY.")
+        else:
+            st.error("⚠️ We couldn't find the necessary columns. Please make sure your CSV has a 'Date' column and a 'Miles' column.")
