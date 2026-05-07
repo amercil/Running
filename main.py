@@ -35,15 +35,12 @@ def calculate_xc_splits(predicted_5k_sec):
     avg_mile = predicted_5k_sec / 3.10686
     return format_time(avg_mile - 5), format_time(avg_mile + 5), format_time(avg_mile)
 
-# --- NEW: TRAINING PACE CALCULATOR ---
 def calculate_training_paces(predicted_5k_sec):
     if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
     avg_mile = predicted_5k_sec / 3.10686
-    
-    easy_pace = avg_mile + 120       # 5K pace + 2 mins
-    tempo_pace = avg_mile + 30       # 5K pace + 30 secs
-    vo2_1000m = (predicted_5k_sec / 5) - 5  # 1K pace slightly faster than 5K race pace
-    
+    easy_pace = avg_mile + 120       
+    tempo_pace = avg_mile + 30       
+    vo2_1000m = (predicted_5k_sec / 5) - 5  
     return format_time(easy_pace), format_time(tempo_pace), format_time(vo2_1000m)
 
 def get_temp_penalty(temp_f):
@@ -56,7 +53,17 @@ def get_elevation_multiplier(race_elevation):
     percentage_change = (elevation_diff / 1000) * 0.01
     return 1.0 + percentage_change
 
-def process_team_data(df, team_name, elevation_mult, temp_penalty):
+# --- NEW: COLORADO COURSE DATABASE ---
+CO_COURSES = {
+    "Standard Course (Average)": 1.00,
+    "Liberty Bell (Blazing Fast)": 0.98,
+    "NPEC / State Course (Hilly)": 1.04,
+    "St. Vrain Invitational": 1.01,
+    "Standard Flat / Paved": 0.99,
+    "Standard Tough / Muddy": 1.03
+}
+
+def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
     runners = []
     for index, row in df.iterrows():
         clean_row = {str(k).strip().lower(): v for k, v in row.items()}
@@ -65,17 +72,23 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty):
         t1600 = parse_time(clean_row.get('1600m', '0'))
         t3200 = parse_time(clean_row.get('3200m', '0'))
         t5k = parse_time(clean_row.get('5k', '0'))
-        course_rating = float(clean_row.get('course_rating', 1.0)) 
         
         base_5k = calculate_composite_5k(t800, t1600, t3200, t5k)
         if base_5k > 0:
-            predicted_xc_5k = (base_5k * course_rating * elevation_mult) + temp_penalty
+            predicted_xc_5k = (base_5k * course_mult * elevation_mult) + temp_penalty
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
 
 # --- UI FRONTEND (The Dashboard) ---
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
 st.title("🏃‍♂️ The Lactic Lab")
+
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("📍 Course Selection")
+selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
+course_multiplier = CO_COURSES[selected_course]
+
+st.sidebar.divider()
 
 st.sidebar.header("⚙️ Race Day Conditions")
 st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
@@ -101,7 +114,7 @@ if home_file is not None:
         elevation_mult = get_elevation_multiplier(race_elevation)
         temp_penalty_sec = get_temp_penalty(race_temp)
         
-        home_runners = process_team_data(home_df, home_name, elevation_mult, temp_penalty_sec)
+        home_runners = process_team_data(home_df, home_name, elevation_mult, temp_penalty_sec, course_multiplier)
         
         if mode == "Single Team Analytics":
             home_runners.sort(key=lambda x: x['predicted_5k'])
@@ -119,8 +132,6 @@ if home_file is not None:
             st.bar_chart(chart_df, color="#ff4b4b")
             
             st.divider()
-            
-            # --- TWO COLUMNS FOR EXECUTIONS & TRAINING ---
             exec_col, train_col = st.columns(2)
             
             with exec_col:
@@ -131,26 +142,23 @@ if home_file is not None:
                     pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
                 pacing_df = pd.DataFrame(pacing_data)
                 st.dataframe(pacing_df, use_container_width=True)
-                
                 csv_export1 = pacing_df.to_csv(index=False).encode('utf-8')
                 st.download_button(label="📥 Download Race Plan", data=csv_export1, file_name="race_plan.csv", mime="text/csv", type="primary")
 
             with train_col:
-                # --- NEW: TRAINING PACES FOR FULL ROSTER ---
                 st.subheader("👟 Full Roster Training Paces")
                 training_data = []
                 for runner in home_runners:
                     easy, tempo, vo2 = calculate_training_paces(runner['predicted_5k'])
-                    training_data.append({"Athlete": runner['name'], "Recovery/Easy (mi)": easy, "Tempo/Threshold (mi)": tempo, "VO2 Max (1000m)": vo2})
+                    training_data.append({"Athlete": runner['name'], "Recovery (mi)": easy, "Tempo (mi)": tempo, "VO2 Max (1000m)": vo2})
                 training_df = pd.DataFrame(training_data)
                 st.dataframe(training_df, use_container_width=True)
-                
                 csv_export2 = training_df.to_csv(index=False).encode('utf-8')
                 st.download_button(label="📥 Download Training Paces", data=csv_export2, file_name="training_paces.csv", mime="text/csv", type="secondary")
 
         elif mode == "Dual Meet Simulator":
             away_df = pd.read_csv(away_file)
-            away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec)
+            away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec, course_multiplier)
             
             all_runners = home_runners + away_runners
             all_runners.sort(key=lambda x: x['predicted_5k'])
