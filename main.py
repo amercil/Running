@@ -76,7 +76,7 @@ if uploaded_file is not None:
         team_runners = []
         
         for index, row in team_data.iterrows():
-            # FIX: Create a lowercase, space-free dictionary of the row so " 5K " just becomes "5k"
+            # FIX: Create a lowercase, space-free dictionary of the row
             clean_row = {str(k).strip().lower(): v for k, v in row.items()}
             
             name = clean_row.get('name', f"Runner {index}")
