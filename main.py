@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 # --- HELPER FUNCTIONS (The Brains) ---
 def format_time(seconds):
@@ -30,16 +31,12 @@ def calculate_composite_5k(t800, t1600, t3200, t5k):
     elif track_fitness > 0: return track_fitness
     else: return 0 
 
-# --- UPGRADED: COURSE-SPECIFIC PACING ---
 def calculate_xc_splits(predicted_5k_sec, pace_offsets):
     if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
     avg_mile = predicted_5k_sec / 3.10686
-    
-    # Apply the course-specific terrain adjustments
     m1 = avg_mile + pace_offsets[0]
     m2 = avg_mile + pace_offsets[1]
     m3 = avg_mile + pace_offsets[2]
-    
     return format_time(m1), format_time(m2), format_time(m3)
 
 def calculate_training_paces(predicted_5k_sec):
@@ -95,15 +92,13 @@ def standardize_roster(df):
             
     return norm_df
 
-# --- UPGRADED: COLORADO COURSE DATABASE WITH TERRAIN OFFSETS ---
-# Format: "Course Name": {"mult": Speed Multiplier, "splits": [Mile 1 offset, Mile 2 offset, Mile 3 offset]}
 CO_COURSES = {
     "Standard Course (Average)": {"mult": 1.00, "splits": [-5, 5, 0]},
     "Liberty Bell (Blazing Fast)": {"mult": 0.98, "splits": [-10, 0, 10]}, 
-    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]}, # Brutal uphill mile 2
+    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]},
     "St. Vrain Invitational": {"mult": 1.01, "splits": [0, 5, -5]},
-    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]}, # Even pacing all the way
-    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]} # Conservative start, strong finish
+    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]},
+    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]}
 }
 
 def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
@@ -122,14 +117,19 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
     return runners
 
 # --- UI FRONTEND (The Dashboard) ---
-st.set_page_config(page_title="The Lactic Lab", layout="wide")
-st.title("🏃‍♂️ The Lactic Lab")
+st.set_page_config(page_title="The Lactic Lab | Windsor XC", page_icon="🏃‍♂️", layout="wide")
 
-# --- SIDEBAR CONTROLS (Global) ---
+# --- BRANDED SIDEBAR ---
+if os.path.exists("logo.png"):
+    st.sidebar.image("logo.png", use_container_width=True)
+else:
+    st.sidebar.markdown("## 🧙‍♂️ Windsor XC")
+
+st.sidebar.markdown("*\"To give anything less than your best is to sacrifice the gift.\"* - Pre")
+st.sidebar.divider()
+
 st.sidebar.header("📍 Course Selection")
 selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
-
-# Extract both multiplier and pace strategy from the new dictionary
 course_multiplier = CO_COURSES[selected_course]["mult"]
 course_pace_strategy = CO_COURSES[selected_course]["splits"]
 
@@ -143,7 +143,8 @@ race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max
 elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
-# --- APP TABS ---
+st.title("🏃‍♂️ The Lactic Lab")
+
 tab1, tab2 = st.tabs(["📊 Team Analytics & Scouting", "🎯 Sub-X Goal Setter"])
 
 with tab1:
@@ -179,7 +180,8 @@ with tab1:
                 st.divider()
                 st.subheader("📊 Pack Spread Visualization")
                 chart_df = pd.DataFrame({"Athlete": [r['name'] for r in varsity_squad], "Time (Seconds)": [r['predicted_5k'] for r in varsity_squad]}).set_index("Athlete")
-                st.bar_chart(chart_df, color="#ff4b4b")
+                # Updated bar chart to match the new Windsor Maroon branding
+                st.bar_chart(chart_df, color="#800000")
                 
                 st.divider()
                 exec_col, train_col = st.columns(2)
@@ -188,7 +190,6 @@ with tab1:
                     st.subheader(f"⏱️ Varsity Race Execution: {selected_course}")
                     pacing_data = []
                     for runner in varsity_squad:
-                        # Pass the course-specific pacing strategy into the split calculator!
                         m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'], course_pace_strategy)
                         pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
                     pacing_df = pd.DataFrame(pacing_data)
