@@ -136,8 +136,8 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-# NEW: We added a third tab to the layout!
-tab1, tab2, tab3 = st.tabs(["📊 Team Analytics & Scouting", "🎯 Sub-X Goal Setter", "📅 Summer Training Plan"])
+# NEW: We added a fourth tab to the layout!
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Team Analytics", "🎯 Sub-X Goal Setter", "📅 Summer Training", "⏱️ Interval Math"])
 
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
@@ -263,9 +263,6 @@ with tab2:
         
         st.info("💡 **Coach's Note:** They don't necessarily need to hit *all three* of these times, but they need an equivalent aerobic mix that averages out to these benchmarks.")
 
-# ==========================================
-# TAB 3: SUMMER TRAINING PLAN (NEW)
-# ==========================================
 with tab3:
     st.header("📅 Summer Base Phase Calendar")
     st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
@@ -278,7 +275,6 @@ with tab3:
         st.subheader("1. Download the Template")
         st.write("If you don't have a plan set up yet, download this CSV template. Your coach can edit it in Excel or Google Sheets and pass it back to you.")
         
-        # We generate a dummy template on the fly for them to download
         template_df = pd.DataFrame({
             "Date": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-07"],
             "Type": ["Easy Run", "Workout", "Recovery", "Easy Run", "Rest", "Long Run", "Rest"],
@@ -296,33 +292,23 @@ with tab3:
         st.divider()
         plan_df = pd.read_csv(plan_file)
         
-        # Clean up column names in case the coach used lowercase
         plan_df.columns = [str(c).strip().title() for c in plan_df.columns]
         
         if 'Date' in plan_df.columns and 'Miles' in plan_df.columns:
             try:
-                # Convert the raw dates into actual Python Datetime objects
                 plan_df['Date Object'] = pd.to_datetime(plan_df['Date'])
                 plan_df = plan_df.sort_values(by="Date Object")
-                
-                # Format dates to be highly readable (e.g., "Mon, Jun 01")
                 plan_df['Date'] = plan_df['Date Object'].dt.strftime('%a, %b %d')
-                
-                # Figure out what week of the year it is for grouping
                 plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
                 
-                # Drop the behind-the-scenes calculation columns for the clean display
                 display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
                 
                 st.subheader("🗓️ Daily Training Schedule")
                 st.dataframe(display_df, use_container_width=True)
                 
                 st.divider()
-                
                 st.subheader("📈 Weekly Mileage Progression")
-                # Group all the miles together by the week number
                 weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
-                # Rename the internal Week 22, 23, etc. to just Week 1, Week 2
                 weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
                 
                 chart_df = weekly_miles.set_index('Week')
@@ -332,3 +318,51 @@ with tab3:
                 st.error("⚠️ There was an issue reading the dates. Please make sure your 'Date' column uses a standard format like YYYY-MM-DD or MM/DD/YYYY.")
         else:
             st.error("⚠️ We couldn't find the necessary columns. Please make sure your CSV has a 'Date' column and a 'Miles' column.")
+
+# ==========================================
+# TAB 4: INTERVAL MATH ENGINE (NEW)
+# ==========================================
+with tab4:
+    st.header("⏱️ Interval Math Engine")
+    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
+    st.divider()
+
+    int_col1, int_col2 = st.columns(2)
+    with int_col1:
+        interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
+        workout_type = st.selectbox("Select Track Workout", [
+            "400m Repeats (VO2 Max)", 
+            "800m Repeats (Race Pace)", 
+            "1000m Repeats (Cruise Intervals)", 
+            "1 Mile Repeats (Threshold)"
+        ])
+    
+    int_5k_sec = parse_time(interval_5k_input)
+
+    if int_5k_sec > 0:
+        base_400_pace = (int_5k_sec / 5000) * 400
+        
+        if workout_type == "400m Repeats (VO2 Max)":
+            rep_time = base_400_pace - 4  # Slightly faster than 5k pace
+            recovery = rep_time           # 1:1 work-to-rest ratio
+            reps_suggested = "10-12 reps"
+            
+        elif workout_type == "800m Repeats (Race Pace)":
+            rep_time = (int_5k_sec / 5000) * 800  # Exact 5k pace
+            recovery = 120                        # 2 minutes active recovery
+            reps_suggested = "5-6 reps"
+            
+        elif workout_type == "1000m Repeats (Cruise Intervals)":
+            rep_time = (int_5k_sec / 5000) * 1000 + 5 # Slightly slower than 5k pace
+            recovery = 60                             # 1 minute rest
+            reps_suggested = "4-5 reps"
+            
+        elif workout_type == "1 Mile Repeats (Threshold)":
+            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 # 5k pace + ~20 sec per mile
+            recovery = 60                                 # 1 minute rest
+            reps_suggested = "3-4 reps"
+        
+        with int_col2:
+            st.info(f"**Suggested Volume:** {reps_suggested}")
+            st.metric("🎯 Target Split (per rep)", format_time(rep_time))
+            st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
