@@ -35,6 +35,17 @@ def calculate_xc_splits(predicted_5k_sec):
     avg_mile = predicted_5k_sec / 3.10686
     return format_time(avg_mile - 5), format_time(avg_mile + 5), format_time(avg_mile)
 
+# --- NEW: TRAINING PACE CALCULATOR ---
+def calculate_training_paces(predicted_5k_sec):
+    if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
+    avg_mile = predicted_5k_sec / 3.10686
+    
+    easy_pace = avg_mile + 120       # 5K pace + 2 mins
+    tempo_pace = avg_mile + 30       # 5K pace + 30 secs
+    vo2_1000m = (predicted_5k_sec / 5) - 5  # 1K pace slightly faster than 5K race pace
+    
+    return format_time(easy_pace), format_time(tempo_pace), format_time(vo2_1000m)
+
 def get_temp_penalty(temp_f):
     if temp_f > 60: return (temp_f - 60) * 1.5  
     elif temp_f < 35: return (35 - temp_f) * 1.0  
@@ -45,7 +56,6 @@ def get_elevation_multiplier(race_elevation):
     percentage_change = (elevation_diff / 1000) * 0.01
     return 1.0 + percentage_change
 
-# --- NEW: TEAM PROCESSING ENGINE ---
 def process_team_data(df, team_name, elevation_mult, temp_penalty):
     runners = []
     for index, row in df.iterrows():
@@ -75,7 +85,6 @@ race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max
 st.write("Upload just your team for standard analytics, or upload a rival team to simulate a dual meet.")
 st.divider()
 
-# --- DUAL UPLOAD COLUMNS ---
 col1, col2 = st.columns(2)
 with col1:
     home_name = st.text_input("Home Team Name", "Windsor")
@@ -94,9 +103,6 @@ if home_file is not None:
         
         home_runners = process_team_data(home_df, home_name, elevation_mult, temp_penalty_sec)
         
-        # ==========================================
-        # SCENARIO A: SINGLE TEAM MODE
-        # ==========================================
         if mode == "Single Team Analytics":
             home_runners.sort(key=lambda x: x['predicted_5k'])
             varsity_squad = home_runners[:5]
@@ -113,25 +119,39 @@ if home_file is not None:
             st.bar_chart(chart_df, color="#ff4b4b")
             
             st.divider()
-            st.subheader("⏱️ Varsity Race Execution Plan")
-            pacing_data = []
-            for runner in varsity_squad:
-                m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'])
-                pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
-            pacing_df = pd.DataFrame(pacing_data)
-            st.dataframe(pacing_df, use_container_width=True)
             
-            csv_export = pacing_df.to_csv(index=False).encode('utf-8')
-            st.download_button(label="📥 Download Split Cards (CSV)", data=csv_export, file_name="varsity_race_plan.csv", mime="text/csv", type="primary")
+            # --- TWO COLUMNS FOR EXECUTIONS & TRAINING ---
+            exec_col, train_col = st.columns(2)
+            
+            with exec_col:
+                st.subheader("⏱️ Varsity Race Execution")
+                pacing_data = []
+                for runner in varsity_squad:
+                    m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'])
+                    pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
+                pacing_df = pd.DataFrame(pacing_data)
+                st.dataframe(pacing_df, use_container_width=True)
+                
+                csv_export1 = pacing_df.to_csv(index=False).encode('utf-8')
+                st.download_button(label="📥 Download Race Plan", data=csv_export1, file_name="race_plan.csv", mime="text/csv", type="primary")
 
-        # ==========================================
-        # SCENARIO B: DUAL MEET SCORING MODE
-        # ==========================================
+            with train_col:
+                # --- NEW: TRAINING PACES FOR FULL ROSTER ---
+                st.subheader("👟 Full Roster Training Paces")
+                training_data = []
+                for runner in home_runners:
+                    easy, tempo, vo2 = calculate_training_paces(runner['predicted_5k'])
+                    training_data.append({"Athlete": runner['name'], "Recovery/Easy (mi)": easy, "Tempo/Threshold (mi)": tempo, "VO2 Max (1000m)": vo2})
+                training_df = pd.DataFrame(training_data)
+                st.dataframe(training_df, use_container_width=True)
+                
+                csv_export2 = training_df.to_csv(index=False).encode('utf-8')
+                st.download_button(label="📥 Download Training Paces", data=csv_export2, file_name="training_paces.csv", mime="text/csv", type="secondary")
+
         elif mode == "Dual Meet Simulator":
             away_df = pd.read_csv(away_file)
             away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec)
             
-            # Combine both teams and sort by time
             all_runners = home_runners + away_runners
             all_runners.sort(key=lambda x: x['predicted_5k'])
             
@@ -141,7 +161,6 @@ if home_file is not None:
             
             for runner in all_runners:
                 team = runner['team']
-                
                 if team == home_name:
                     home_count += 1
                     if home_count <= 7:
@@ -149,7 +168,6 @@ if home_file is not None:
                         if home_count <= 5: home_score += points
                         scored_results.append({'Place': current_points, 'Name': runner['name'], 'Team': team, 'Time': format_time(runner['predicted_5k']), 'Points': points if home_count <= 5 else '(Displacer)'})
                         current_points += 1
-                        
                 elif team == away_name:
                     away_count += 1
                     if away_count <= 7:
@@ -160,17 +178,10 @@ if home_file is not None:
 
             st.divider()
             st.subheader("🏁 Dual Meet Simulation Results")
-            
-            # Display Scoreboard
             st.markdown(f"### **{home_name}: {home_score}** | **{away_name}: {away_score}**")
-            if home_score < away_score:
-                st.success(f"🏆 {home_name} is projected to win!")
-            elif away_score < home_score:
-                st.error(f"⚠️ {away_name} is projected to win.")
-            else:
-                st.warning("🤝 Projected Tie! (Check 6th runner displacement).")
-
-            # Display Head-to-Head Table
+            if home_score < away_score: st.success(f"🏆 {home_name} is projected to win!")
+            elif away_score < home_score: st.error(f"⚠️ {away_name} is projected to win.")
+            else: st.warning("🤝 Projected Tie! (Check 6th runner displacement).")
             st.dataframe(pd.DataFrame(scored_results), use_container_width=True)
 
 else:
