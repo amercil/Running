@@ -30,10 +30,17 @@ def calculate_composite_5k(t800, t1600, t3200, t5k):
     elif track_fitness > 0: return track_fitness
     else: return 0 
 
-def calculate_xc_splits(predicted_5k_sec):
+# --- UPGRADED: COURSE-SPECIFIC PACING ---
+def calculate_xc_splits(predicted_5k_sec, pace_offsets):
     if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
     avg_mile = predicted_5k_sec / 3.10686
-    return format_time(avg_mile - 5), format_time(avg_mile + 5), format_time(avg_mile)
+    
+    # Apply the course-specific terrain adjustments
+    m1 = avg_mile + pace_offsets[0]
+    m2 = avg_mile + pace_offsets[1]
+    m3 = avg_mile + pace_offsets[2]
+    
+    return format_time(m1), format_time(m2), format_time(m3)
 
 def calculate_training_paces(predicted_5k_sec):
     if predicted_5k_sec == 0: return "N/A", "N/A", "N/A"
@@ -53,19 +60,13 @@ def get_elevation_multiplier(race_elevation):
     percentage_change = (elevation_diff / 1000) * 0.01
     return 1.0 + percentage_change
 
-# --- NEW: REVERSE GOAL CALCULATOR ---
 def calculate_goal_track_times(target_xc_sec, elevation_mult, temp_penalty, course_mult):
-    # Strip away the environment to find the required "Base Fitness"
     base_5k_needed = (target_xc_sec - temp_penalty) / (course_mult * elevation_mult)
-    
-    # Reverse the track multipliers
     t3200_needed = base_5k_needed / 1.6
     t1600_needed = base_5k_needed / 3.35
     t800_needed = base_5k_needed / 7.1
-    
     return format_time(t800_needed), format_time(t1600_needed), format_time(t3200_needed)
 
-# --- RAW DATA SCRUBBER ---
 def standardize_roster(df):
     df.columns = [str(c).strip().lower() for c in df.columns]
     norm_df = pd.DataFrame()
@@ -94,14 +95,15 @@ def standardize_roster(df):
             
     return norm_df
 
-# --- COLORADO COURSE DATABASE ---
+# --- UPGRADED: COLORADO COURSE DATABASE WITH TERRAIN OFFSETS ---
+# Format: "Course Name": {"mult": Speed Multiplier, "splits": [Mile 1 offset, Mile 2 offset, Mile 3 offset]}
 CO_COURSES = {
-    "Standard Course (Average)": 1.00,
-    "Liberty Bell (Blazing Fast)": 0.98,
-    "NPEC / State Course (Hilly)": 1.04,
-    "St. Vrain Invitational": 1.01,
-    "Standard Flat / Paved": 0.99,
-    "Standard Tough / Muddy": 1.03
+    "Standard Course (Average)": {"mult": 1.00, "splits": [-5, 5, 0]},
+    "Liberty Bell (Blazing Fast)": {"mult": 0.98, "splits": [-10, 0, 10]}, 
+    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]}, # Brutal uphill mile 2
+    "St. Vrain Invitational": {"mult": 1.01, "splits": [0, 5, -5]},
+    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]}, # Even pacing all the way
+    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]} # Conservative start, strong finish
 }
 
 def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
@@ -126,7 +128,10 @@ st.title("🏃‍♂️ The Lactic Lab")
 # --- SIDEBAR CONTROLS (Global) ---
 st.sidebar.header("📍 Course Selection")
 selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
-course_multiplier = CO_COURSES[selected_course]
+
+# Extract both multiplier and pace strategy from the new dictionary
+course_multiplier = CO_COURSES[selected_course]["mult"]
+course_pace_strategy = CO_COURSES[selected_course]["splits"]
 
 st.sidebar.divider()
 
@@ -135,16 +140,12 @@ st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft)."
 race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
 race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
 
-# Calculate global condition variables
 elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
 tab1, tab2 = st.tabs(["📊 Team Analytics & Scouting", "🎯 Sub-X Goal Setter"])
 
-# ==========================================
-# TAB 1: TEAM ANALYTICS
-# ==========================================
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
     st.divider()
@@ -184,10 +185,11 @@ with tab1:
                 exec_col, train_col = st.columns(2)
                 
                 with exec_col:
-                    st.subheader("⏱️ Varsity Race Execution")
+                    st.subheader(f"⏱️ Varsity Race Execution: {selected_course}")
                     pacing_data = []
                     for runner in varsity_squad:
-                        m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'])
+                        # Pass the course-specific pacing strategy into the split calculator!
+                        m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'], course_pace_strategy)
                         pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
                     pacing_df = pd.DataFrame(pacing_data)
                     st.dataframe(pacing_df, use_container_width=True)
@@ -245,9 +247,6 @@ with tab1:
     else:
         st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
 
-# ==========================================
-# TAB 2: SUB-X GOAL SETTER
-# ==========================================
 with tab2:
     st.header("🎯 The Sub-X Goal Setter")
     st.write(f"This tool calculates the track fitness required to hit a specific 5K goal. It automatically factors in your current sidebar settings (**{selected_course}**, **{race_temp}°F**, and **{race_elevation}ft** elevation).")
@@ -269,3 +268,5 @@ with tab2:
             st.metric("1600m Fitness Required", t1600)
         with col_c:
             st.metric("3200m Fitness Required", t3200)
+        
+        st.info("💡 **Coach's Note:** They don't necessarily need to hit *all three* of these times, but they need an equivalent aerobic mix that averages out to these benchmarks.")
