@@ -11,7 +11,7 @@ def format_time(seconds):
 def parse_time(time_str):
     try:
         time_str = str(time_str).strip()
-        if time_str.lower() in ["", "0", "nan", "n/a", "none"]: return 0
+        if time_str.lower() in ["", "0", "nan", "n/a", "none", "nt", "dns"]: return 0
         if '.' in time_str and ':' not in time_str: time_str = time_str.replace('.', ':')
         parts = time_str.split(':')
         return (int(parts[0]) * 60) + float(parts[1])
@@ -53,7 +53,44 @@ def get_elevation_multiplier(race_elevation):
     percentage_change = (elevation_diff / 1000) * 0.01
     return 1.0 + percentage_change
 
-# --- NEW: COLORADO COURSE DATABASE ---
+# --- NEW: RAW DATA SCRUBBER ---
+def standardize_roster(df):
+    # Convert all headers to lowercase and strip whitespace
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    norm_df = pd.DataFrame()
+    
+    # 1. Identify the Name column intelligently
+    if 'name' in df.columns:
+        norm_df['name'] = df['name']
+    elif 'athlete' in df.columns:
+        norm_df['name'] = df['athlete']
+    elif 'first name' in df.columns and 'last name' in df.columns:
+        norm_df['name'] = df['first name'] + " " + df['last name']
+    else:
+        norm_df['name'] = [f"Runner {i+1}" for i in range(len(df))]
+        
+    # 2. Map standard events from messy headers
+    event_mappings = {
+        '800m': ['800', '800m', '800 meters'],
+        '1600m': ['1600', '1600m', '1600 meters', 'mile', '1 mile'],
+        '3200m': ['3200', '3200m', '3200 meters', '2 mile', '2mile'],
+        '5k': ['5k', '5000', '5000m', '5000 meters', 'xc']
+    }
+    
+    for std_event, keywords in event_mappings.items():
+        found = False
+        for col in df.columns:
+            # Look for keyword matches, excluding relays or rank columns
+            if any(kw in col for kw in keywords) and 'relay' not in col and 'place' not in col:
+                norm_df[std_event] = df[col].astype(str)
+                found = True
+                break
+        if not found:
+            norm_df[std_event] = '0'
+            
+    return norm_df
+
+# --- COLORADO COURSE DATABASE ---
 CO_COURSES = {
     "Standard Course (Average)": 1.00,
     "Liberty Bell (Blazing Fast)": 0.98,
@@ -66,12 +103,11 @@ CO_COURSES = {
 def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
     runners = []
     for index, row in df.iterrows():
-        clean_row = {str(k).strip().lower(): v for k, v in row.items()}
-        name = clean_row.get('name', f"Runner {index}")
-        t800 = parse_time(clean_row.get('800m', '0'))
-        t1600 = parse_time(clean_row.get('1600m', '0'))
-        t3200 = parse_time(clean_row.get('3200m', '0'))
-        t5k = parse_time(clean_row.get('5k', '0'))
+        name = row.get('name', f"Runner {index}")
+        t800 = parse_time(row.get('800m', '0'))
+        t1600 = parse_time(row.get('1600m', '0'))
+        t3200 = parse_time(row.get('3200m', '0'))
+        t5k = parse_time(row.get('5k', '0'))
         
         base_5k = calculate_composite_5k(t800, t1600, t3200, t5k)
         if base_5k > 0:
@@ -83,7 +119,6 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
 st.title("🏃‍♂️ The Lactic Lab")
 
-# --- SIDEBAR CONTROLS ---
 st.sidebar.header("📍 Course Selection")
 selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
 course_multiplier = CO_COURSES[selected_course]
@@ -95,7 +130,7 @@ st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft)."
 race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
 race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
 
-st.write("Upload just your team for standard analytics, or upload a rival team to simulate a dual meet.")
+st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
 st.divider()
 
 col1, col2 = st.columns(2)
@@ -107,7 +142,10 @@ with col2:
     away_file = st.file_uploader("Upload Rival Roster", type=["csv"], key="away")
 
 if home_file is not None:
-    home_df = pd.read_csv(home_file)
+    # Run the raw file through the new Data Scrubber
+    raw_home_df = pd.read_csv(home_file)
+    home_df = standardize_roster(raw_home_df)
+    
     mode = "Dual Meet Simulator" if away_file is not None else "Single Team Analytics"
     
     if st.button(f"Run {mode}", type="primary", use_container_width=True):
@@ -157,7 +195,8 @@ if home_file is not None:
                 st.download_button(label="📥 Download Training Paces", data=csv_export2, file_name="training_paces.csv", mime="text/csv", type="secondary")
 
         elif mode == "Dual Meet Simulator":
-            away_df = pd.read_csv(away_file)
+            raw_away_df = pd.read_csv(away_file)
+            away_df = standardize_roster(raw_away_df)
             away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec, course_multiplier)
             
             all_runners = home_runners + away_runners
@@ -193,4 +232,4 @@ if home_file is not None:
             st.dataframe(pd.DataFrame(scored_results), use_container_width=True)
 
 else:
-    st.info("Awaiting roster upload. Please drop at least your home CSV file above to begin.")
+    st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
