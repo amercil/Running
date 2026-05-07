@@ -35,15 +35,32 @@ def calculate_xc_splits(predicted_5k_sec):
     avg_mile = predicted_5k_sec / 3.10686
     return format_time(avg_mile - 5), format_time(avg_mile + 5), format_time(avg_mile)
 
+def get_temp_penalty(temp_f):
+    # Optimal temp is ~45-55. Penalize heat heavily, penalize extreme cold slightly.
+    if temp_f > 60:
+        return (temp_f - 60) * 1.5  # Add 1.5 seconds per degree over 60F
+    elif temp_f < 35:
+        return (35 - temp_f) * 1.0  # Add 1 second per degree under 35F
+    return 0
+
+def get_elevation_multiplier(race_elevation):
+    # Colorado Baseline: 4500 ft. Roughly 1% time change per 1000 ft difference.
+    elevation_diff = race_elevation - 4500
+    percentage_change = (elevation_diff / 1000) * 0.01
+    return 1.0 + percentage_change
+
 # --- UI FRONTEND (The Dashboard) ---
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
 st.title("🏃‍♂️ The Lactic Lab")
 
-# --- STEP 3: ADVANCED VARIABLES (Sidebar) ---
+# --- CUSTOM COLORADO SIDEBAR ---
 st.sidebar.header("⚙️ Race Day Conditions")
-st.sidebar.write("Adjust these sliders to globally affect all team predictions.")
-weather_penalty = st.sidebar.slider("Weather Penalty (+ Seconds)", min_value=0, max_value=120, value=0, step=5, help="Add seconds for mud, rain, or extreme heat.")
-elevation_multiplier = st.sidebar.number_input("Elevation Multiplier", min_value=1.00, max_value=1.10, value=1.00, step=0.01, help="1.00 is sea level. Try 1.03 for moderate altitude.")
+st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
+
+race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1, 
+                              help="Optimal is 45-55°F. The algorithm auto-calculates heat/cold penalties.")
+race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100, 
+                                         help="Set to 0 if racing at sea level. Set to 4500 for home meets.")
 
 st.write("Calculations powered by a composite model of 800m, 1600m, 3200m, and historic 5k PRs.")
 st.divider()
@@ -56,6 +73,10 @@ if uploaded_file is not None:
     
     if st.button("Run Team Analytics", type="primary", use_container_width=True):
         team_runners = []
+        
+        # Fetch the dynamic multipliers once before the loop
+        elevation_mult = get_elevation_multiplier(race_elevation)
+        temp_penalty_sec = get_temp_penalty(race_temp)
         
         for index, row in team_data.iterrows():
             clean_row = {str(k).strip().lower(): v for k, v in row.items()}
@@ -70,8 +91,8 @@ if uploaded_file is not None:
             base_5k = calculate_composite_5k(t800, t1600, t3200, t5k)
             
             if base_5k > 0:
-                # Math Engine upgraded to include Sidebar variables
-                predicted_xc_5k = (base_5k * course_rating * elevation_multiplier) + weather_penalty
+                # The Final Formula: (Base Time * Course Difficulty * Elevation Change) + Temperature Penalty
+                predicted_xc_5k = (base_5k * course_rating * elevation_mult) + temp_penalty_sec
                 team_runners.append({'name': name, 'predicted_5k': predicted_xc_5k})
         
         # --- VARSITY SCORING ---
@@ -86,7 +107,7 @@ if uploaded_file is not None:
         
         st.divider()
         
-        # --- STEP 1: DATA VISUALIZATION ---
+        # --- DATA VISUALIZATION ---
         st.subheader("📊 Pack Spread Visualization")
         chart_df = pd.DataFrame({
             "Athlete": [r['name'] for r in varsity_squad],
@@ -112,7 +133,7 @@ if uploaded_file is not None:
         
         st.divider()
         
-        # --- STEP 2: RACE DAY EXPORT ---
+        # --- RACE DAY EXPORT ---
         csv_export = pacing_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Download Split Cards (CSV)",
