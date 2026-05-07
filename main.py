@@ -136,7 +136,6 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-# NEW: We added a fourth tab to the layout!
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Team Analytics", "🎯 Sub-X Goal Setter", "📅 Summer Training", "⏱️ Interval Math"])
 
 with tab1:
@@ -320,7 +319,7 @@ with tab3:
             st.error("⚠️ We couldn't find the necessary columns. Please make sure your CSV has a 'Date' column and a 'Miles' column.")
 
 # ==========================================
-# TAB 4: INTERVAL MATH ENGINE (NEW)
+# TAB 4: INTERVAL MATH ENGINE (UPDATED)
 # ==========================================
 with tab4:
     st.header("⏱️ Interval Math Engine")
@@ -330,10 +329,16 @@ with tab4:
     int_col1, int_col2 = st.columns(2)
     with int_col1:
         interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
+        
+        # We expanded this list to include a wider variety of track efforts
         workout_type = st.selectbox("Select Track Workout", [
+            "200m Repeats (Speed/Turnover)",
+            "400m Repeats (Mile Race Pace)",
             "400m Repeats (VO2 Max)", 
+            "400m Repeats (Threshold / Short Rest)",
             "800m Repeats (Race Pace)", 
             "1000m Repeats (Cruise Intervals)", 
+            "1200m Repeats (VO2 Max)",
             "1 Mile Repeats (Threshold)"
         ])
     
@@ -342,24 +347,48 @@ with tab4:
     if int_5k_sec > 0:
         base_400_pace = (int_5k_sec / 5000) * 400
         
-        if workout_type == "400m Repeats (VO2 Max)":
-            rep_time = base_400_pace - 4  # Slightly faster than 5k pace
-            recovery = rep_time           # 1:1 work-to-rest ratio
+        # New: Fast 200s for speed
+        if workout_type == "200m Repeats (Speed/Turnover)":
+            rep_time = (base_400_pace / 2) - 4
+            recovery = 90
+            reps_suggested = "8-12 reps"
+            
+        # New: 400s at equivalent mile pace
+        elif workout_type == "400m Repeats (Mile Race Pace)":
+            rep_time = base_400_pace - 8
+            recovery = 120
+            reps_suggested = "8-10 reps"
+            
+        elif workout_type == "400m Repeats (VO2 Max)":
+            rep_time = base_400_pace - 4 
+            recovery = rep_time           
             reps_suggested = "10-12 reps"
             
+        # New: 400s at slower threshold pace with very short rest
+        elif workout_type == "400m Repeats (Threshold / Short Rest)":
+            rep_time = base_400_pace + 2
+            recovery = 30
+            reps_suggested = "12-16 reps"
+            
         elif workout_type == "800m Repeats (Race Pace)":
-            rep_time = (int_5k_sec / 5000) * 800  # Exact 5k pace
-            recovery = 120                        # 2 minutes active recovery
+            rep_time = (int_5k_sec / 5000) * 800  
+            recovery = 120                        
             reps_suggested = "5-6 reps"
             
         elif workout_type == "1000m Repeats (Cruise Intervals)":
-            rep_time = (int_5k_sec / 5000) * 1000 + 5 # Slightly slower than 5k pace
-            recovery = 60                             # 1 minute rest
+            rep_time = (int_5k_sec / 5000) * 1000 + 5 
+            recovery = 60                             
             reps_suggested = "4-5 reps"
             
+        # New: 1200m long intervals
+        elif workout_type == "1200m Repeats (VO2 Max)":
+            rep_time = (int_5k_sec / 5000) * 1200 - 5
+            recovery = 180
+            reps_suggested = "3-4 reps"
+            
         elif workout_type == "1 Mile Repeats (Threshold)":
-            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 # 5k pace + ~20 sec per mile
-            recovery = 60                                 # 1 minute rest
+            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
+            recovery = 60                                 
             reps_suggested = "3-4 reps"
         
         with int_col2:
