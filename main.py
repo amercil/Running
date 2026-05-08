@@ -132,11 +132,39 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
 
+# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
+TOP_10_RECORDS = {
+    "Boys 5K XC": [
+        {"Rank": 1, "Name": "Hunter K.", "Time": "15:24.00", "Year": 2019},
+        {"Rank": 2, "Name": "Cody J.", "Time": "15:45.30", "Year": 2017},
+        {"Rank": 3, "Name": "Liam S.", "Time": "15:52.10", "Year": 2021},
+        {"Rank": 4, "Name": "Noah B.", "Time": "15:58.40", "Year": 2015},
+        {"Rank": 5, "Name": "Ethan W.", "Time": "16:02.00", "Year": 2020},
+        {"Rank": 6, "Name": "Mason T.", "Time": "16:05.50", "Year": 2018},
+        {"Rank": 7, "Name": "Logan M.", "Time": "16:11.20", "Year": 2016},
+        {"Rank": 8, "Name": "Lucas R.", "Time": "16:15.80", "Year": 2022},
+        {"Rank": 9, "Name": "Jackson F.", "Time": "16:18.40", "Year": 2014},
+        {"Rank": 10, "Name": "Evan D.", "Time": "16:21.50", "Year": 2023}
+    ],
+    "Girls 5K XC": [
+        {"Rank": 1, "Name": "Emma L.", "Time": "17:45.00", "Year": 2020},
+        {"Rank": 2, "Name": "Olivia P.", "Time": "18:02.10", "Year": 2018},
+        {"Rank": 3, "Name": "Ava G.", "Time": "18:15.40", "Year": 2021},
+        {"Rank": 4, "Name": "Isabella M.", "Time": "18:22.30", "Year": 2019},
+        {"Rank": 5, "Name": "Sophia C.", "Time": "18:28.00", "Year": 2017},
+        {"Rank": 6, "Name": "Mia K.", "Time": "18:35.50", "Year": 2022},
+        {"Rank": 7, "Name": "Amelia R.", "Time": "18:41.20", "Year": 2016},
+        {"Rank": 8, "Name": "Harper W.", "Time": "18:48.80", "Year": 2015},
+        {"Rank": 9, "Name": "Evelyn B.", "Time": "18:55.40", "Year": 2023},
+        {"Rank": 10, "Name": "Abigail H.", "Time": "19:05.10", "Year": 2014}
+    ]
+}
+
 # --- UI FRONTEND (The Dashboard) ---
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
 st.title("🏃‍♂️ The Lactic Lab")
 
-# --- NEW: LIVE WEATHER SIDEBAR WIDGET ---
+# --- LIVE WEATHER SIDEBAR WIDGET ---
 st.sidebar.header("🌤️ Live Windsor Conditions")
 live_temp, live_aqi = get_live_conditions()
 
@@ -145,7 +173,6 @@ if live_temp is not None and live_aqi is not None:
     w_col1.metric("Temp", f"{round(live_temp)}°F")
     w_col2.metric("AQI", f"{round(live_aqi)}")
     
-    # Safety Logic Warnings
     if live_aqi > 150:
         st.sidebar.error("🚨 AQI is Unhealthy. Move practice indoors.")
     elif live_aqi > 100:
@@ -176,7 +203,7 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Team Analytics", "🎯 Sub-X Goal Setter", "📅 Summer Training", "⏱️ Interval Math"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", "⏱️ Interval Math", "🏆 Record Board"])
 
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
@@ -427,3 +454,40 @@ with tab4:
             st.info(f"**Suggested Volume:** {reps_suggested}")
             st.metric("🎯 Target Split (per rep)", format_time(rep_time))
             st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
+
+# ==========================================
+# TAB 5: RECORD BOARD (NEW)
+# ==========================================
+with tab5:
+    st.header("🏆 Windsor All-Time Record Board")
+    st.write("The historic Top 10 lists. See where you stand against the legends of the program.")
+    st.divider()
+
+    rb_col1, rb_col2 = st.columns([2, 1])
+
+    with rb_col1:
+        event_choice = st.selectbox("Select Event List", list(TOP_10_RECORDS.keys()))
+        
+        # Display the Top 10 dataframe
+        record_df = pd.DataFrame(TOP_10_RECORDS[event_choice])
+        st.dataframe(record_df, hide_index=True, use_container_width=True)
+
+    with rb_col2:
+        st.subheader("🎯 Chasing Greatness")
+        st.write("Enter your current PR to see how close you are to cracking the top 10.")
+        
+        user_pr = st.text_input("Your PR (e.g., 17:30)", key="pr_input")
+        pr_sec = parse_time(user_pr)
+
+        if pr_sec > 0:
+            st.divider()
+            tenth_place_time_str = record_df.iloc[9]['Time']
+            tenth_place_sec = parse_time(tenth_place_time_str)
+            tenth_place_name = record_df.iloc[9]['Name']
+
+            if pr_sec <= tenth_place_sec:
+                st.success(f"🔥 **Incredible!** At {user_pr}, you are officially fast enough to be on the All-Time Top 10 Board for the {event_choice}!")
+                st.balloons()
+            else:
+                diff_sec = pr_sec - tenth_place_sec
+                st.info(f"Keep grinding! You need to drop **{format_time(diff_sec)}** to bump {tenth_place_name} ({tenth_place_time_str}) out of the #10 spot.")
