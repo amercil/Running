@@ -131,32 +131,32 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             predicted_xc_5k = (base_5k * course_mult * elevation_mult) + temp_penalty
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
-
-# --- DATA DICTIONARIES ---
+    
+# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
 TOP_10_RECORDS = {
     "Boys 5K XC": [
-        {"Rank": 1, "Name": "Hunter K.", "Time": "15:24.00", "Year": 2019},
-        {"Rank": 2, "Name": "Cody J.", "Time": "15:45.30", "Year": 2017},
-        {"Rank": 3, "Name": "Liam S.", "Time": "15:52.10", "Year": 2021},
-        {"Rank": 4, "Name": "Noah B.", "Time": "15:58.40", "Year": 2015},
-        {"Rank": 5, "Name": "Ethan W.", "Time": "16:02.00", "Year": 2020},
-        {"Rank": 6, "Name": "Mason T.", "Time": "16:05.50", "Year": 2018},
-        {"Rank": 7, "Name": "Logan M.", "Time": "16:11.20", "Year": 2016},
-        {"Rank": 8, "Name": "Lucas R.", "Time": "16:15.80", "Year": 2022},
-        {"Rank": 9, "Name": "Jackson F.", "Time": "16:18.40", "Year": 2014},
-        {"Rank": 10, "Name": "Evan D.", "Time": "16:21.50", "Year": 2023}
+        {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
+        {"Rank": 2, "Name": "Aiden M.", "Time": "16:14", "Year": 2025},
+        {"Rank": 3, "Name": "Nic C.", "Time": "16:18", "Year": 1996},
+        {"Rank": 4, "Name": "Cale E.", "Time": "16:34", "Year": 2016},
+        {"Rank": 5, "Name": "Ben L.", "Time": "16:47", "Year": 2013},
+        {"Rank": 6, "Name": "Alex M.", "Time": "16:51", "Year": 2012},
+        {"Rank": 7, "Name": "Ryan K.", "Time": "17:01", "Year": 2012},
+        {"Rank": 8, "Name": "Ryan S.", "Time": "17:12", "Year": 2017},
+        {"Rank": 9, "Name": "Dillon S.", "Time": "17:26", "Year": 2013},
+        {"Rank": 10, "Name": "Detcho W.", "Time": "17:26", "Year": 2020}
     ],
     "Girls 5K XC": [
-        {"Rank": 1, "Name": "Emma L.", "Time": "17:45.00", "Year": 2020},
-        {"Rank": 2, "Name": "Olivia P.", "Time": "18:02.10", "Year": 2018},
-        {"Rank": 3, "Name": "Ava G.", "Time": "18:15.40", "Year": 2021},
-        {"Rank": 4, "Name": "Isabella M.", "Time": "18:22.30", "Year": 2019},
-        {"Rank": 5, "Name": "Sophia C.", "Time": "18:28.00", "Year": 2017},
-        {"Rank": 6, "Name": "Mia K.", "Time": "18:35.50", "Year": 2022},
-        {"Rank": 7, "Name": "Amelia R.", "Time": "18:41.20", "Year": 2016},
-        {"Rank": 8, "Name": "Harper W.", "Time": "18:48.80", "Year": 2015},
-        {"Rank": 9, "Name": "Evelyn B.", "Time": "18:55.40", "Year": 2023},
-        {"Rank": 10, "Name": "Abigail H.", "Time": "19:05.10", "Year": 2014}
+        {"Rank": 1, "Name": "Morgan H", "Time": "18:20", "Year": 2018},
+        {"Rank": 2, "Name": "Kyndel A.", "Time": "19:08", "Year": 2017},
+        {"Rank": 3, "Name": "Evelyn M.", "Time": "19:46", "Year": 2018},
+        {"Rank": 4, "Name": "Ally B.", "Time": "19:51", "Year": 2013},
+        {"Rank": 5, "Name": "Brooke S.", "Time": "20:02", "Year": 2016},
+        {"Rank": 6, "Name": "Shallene R.", "Time": "20:03", "Year": 2012},
+        {"Rank": 7, "Name": "Tori T.", "Time": "20:04", "Year": 2013},
+        {"Rank": 8, "Name": "Maggie B.", "Time": "20:09", "Year": 2021},
+        {"Rank": 9, "Name": "Eden B.", "Time": "20:22", "Year": 2022},
+        {"Rank": 10, "Name": "Stephanie W.", "Time": "20:28", "Year": 2010}
     ]
 }
 
