@@ -1,7 +1,24 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 # --- HELPER FUNCTIONS (The Brains) ---
+def get_live_conditions():
+    """Fetches real-time Temp and AQI for Windsor, CO using Open-Meteo."""
+    try:
+        lat, lon = 40.4775, -104.9047 # Windsor, CO coordinates
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m&temperature_unit=fahrenheit"
+        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=us_aqi"
+        
+        temp_data = requests.get(weather_url, timeout=5).json()
+        aqi_data = requests.get(aqi_url, timeout=5).json()
+        
+        current_temp = temp_data['current']['temperature_2m']
+        current_aqi = aqi_data['current']['us_aqi']
+        return current_temp, current_aqi
+    except Exception:
+        return None, None
+
 def format_time(seconds):
     if seconds <= 0: return "N/A"
     minutes = int(seconds // 60)
@@ -118,6 +135,29 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
 # --- UI FRONTEND (The Dashboard) ---
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
 st.title("🏃‍♂️ The Lactic Lab")
+
+# --- NEW: LIVE WEATHER SIDEBAR WIDGET ---
+st.sidebar.header("🌤️ Live Windsor Conditions")
+live_temp, live_aqi = get_live_conditions()
+
+if live_temp is not None and live_aqi is not None:
+    w_col1, w_col2 = st.sidebar.columns(2)
+    w_col1.metric("Temp", f"{round(live_temp)}°F")
+    w_col2.metric("AQI", f"{round(live_aqi)}")
+    
+    # Safety Logic Warnings
+    if live_aqi > 150:
+        st.sidebar.error("🚨 AQI is Unhealthy. Move practice indoors.")
+    elif live_aqi > 100:
+        st.sidebar.warning("⚠️ AQI is High. Unhealthy for sensitive groups.")
+    elif live_temp > 90:
+        st.sidebar.warning("🔥 High heat. Hydrate and adjust pace targets.")
+    else:
+        st.sidebar.success("✅ Good training conditions!")
+else:
+    st.sidebar.info("Live data currently unavailable.")
+
+st.sidebar.divider()
 
 # --- SIDEBAR CONTROLS (Global) ---
 st.sidebar.header("📍 Course Selection")
@@ -318,9 +358,6 @@ with tab3:
         else:
             st.error("⚠️ We couldn't find the necessary columns. Please make sure your CSV has a 'Date' column and a 'Miles' column.")
 
-# ==========================================
-# TAB 4: INTERVAL MATH ENGINE (UPDATED)
-# ==========================================
 with tab4:
     st.header("⏱️ Interval Math Engine")
     st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
@@ -330,7 +367,6 @@ with tab4:
     with int_col1:
         interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
         
-        # We expanded this list to include a wider variety of track efforts
         workout_type = st.selectbox("Select Track Workout", [
             "200m Repeats (Speed/Turnover)",
             "400m Repeats (Mile Race Pace)",
@@ -347,13 +383,11 @@ with tab4:
     if int_5k_sec > 0:
         base_400_pace = (int_5k_sec / 5000) * 400
         
-        # New: Fast 200s for speed
         if workout_type == "200m Repeats (Speed/Turnover)":
             rep_time = (base_400_pace / 2) - 4
             recovery = 90
             reps_suggested = "8-12 reps"
             
-        # New: 400s at equivalent mile pace
         elif workout_type == "400m Repeats (Mile Race Pace)":
             rep_time = base_400_pace - 8
             recovery = 120
@@ -364,7 +398,6 @@ with tab4:
             recovery = rep_time           
             reps_suggested = "10-12 reps"
             
-        # New: 400s at slower threshold pace with very short rest
         elif workout_type == "400m Repeats (Threshold / Short Rest)":
             rep_time = base_400_pace + 2
             recovery = 30
@@ -380,7 +413,6 @@ with tab4:
             recovery = 60                             
             reps_suggested = "4-5 reps"
             
-        # New: 1200m long intervals
         elif workout_type == "1200m Repeats (VO2 Max)":
             rep_time = (int_5k_sec / 5000) * 1200 - 5
             recovery = 180
