@@ -132,7 +132,7 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
 
-# --- Leaderboard Data
+# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
 TOP_10_RECORDS = {
     "Boys 5K XC": [
         {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
@@ -160,14 +160,14 @@ TOP_10_RECORDS = {
     ]
 }
 
-# General Recruiting Baselines (Walk-on / Roster Spot standards)
+# General Recruiting Baselines
 RECRUITING_STANDARDS = {
-    "Boys 1600m": {"NCAA D1 (Top Tier)": "4:05", "NCAA D1 (Mid-Major)": "4:15", "NCAA D2 / NAIA Elite": "4:16", "NCAA D3 / NAIA": "4:35"},
-    "Boys 3200m": {"NCAA D1 (Top Tier)": "8:50", "NCAA D1 (Mid-Major)": "9:10", "NCAA D2 / NAIA Elite": "9:20", "NCAA D3 / NAIA": "10:00"},
-    "Boys 5K (XC)": {"NCAA D1 (Top Tier)": "14:40", "NCAA D1 (Mid-Major)": "15:20", "NCAA D2 / NAIA Elite": "15:30", "NCAA D3 / NAIA": "17:00"},
-    "Girls 1600m": {"NCAA D1 (Top Tier)": "4:50", "NCAA D1 (Mid-Major)": "5:10", "NCAA D2 / NAIA Elite": "5:15", "NCAA D3 / NAIA": "5:40"},
-    "Girls 3200m": {"NCAA D1 (Top Tier)": "10:30", "NCAA D1 (Mid-Major)": "11:00", "NCAA D2 / NAIA Elite": "11:30", "NCAA D3 / NAIA": "12:30"},
-    "Girls 5K (XC)": {"NCAA D1 (Top Tier)": "17:30", "NCAA D1 (Mid-Major)": "18:00", "NCAA D2 / NAIA Elite": "18:45", "NCAA D3 / NAIA": "20:30"}
+    "Boys 1600m": {"NCAA D1 (Top Tier)": "4:12", "NCAA D1 (Mid-Major)": "4:20", "NCAA D2 / NAIA Elite": "4:28", "NCAA D3 / NAIA": "4:40"},
+    "Boys 3200m": {"NCAA D1 (Top Tier)": "9:05", "NCAA D1 (Mid-Major)": "9:25", "NCAA D2 / NAIA Elite": "9:40", "NCAA D3 / NAIA": "10:10"},
+    "Boys 5K (XC)": {"NCAA D1 (Top Tier)": "15:15", "NCAA D1 (Mid-Major)": "15:45", "NCAA D2 / NAIA Elite": "16:15", "NCAA D3 / NAIA": "17:00"},
+    "Girls 1600m": {"NCAA D1 (Top Tier)": "4:55", "NCAA D1 (Mid-Major)": "5:10", "NCAA D2 / NAIA Elite": "5:20", "NCAA D3 / NAIA": "5:40"},
+    "Girls 3200m": {"NCAA D1 (Top Tier)": "10:40", "NCAA D1 (Mid-Major)": "11:15", "NCAA D2 / NAIA Elite": "11:40", "NCAA D3 / NAIA": "12:30"},
+    "Girls 5K (XC)": {"NCAA D1 (Top Tier)": "17:45", "NCAA D1 (Mid-Major)": "18:45", "NCAA D2 / NAIA Elite": "19:30", "NCAA D3 / NAIA": "20:30"}
 }
 
 # --- UI FRONTEND (The Dashboard) ---
@@ -365,28 +365,68 @@ with tab3:
 
 with tab4:
     st.header("⏱️ Interval Math Engine")
-    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times.")
+    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
     st.divider()
 
     int_col1, int_col2 = st.columns(2)
     with int_col1:
         interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
+        
         workout_type = st.selectbox("Select Track Workout", [
-            "400m Repeats (VO2 Max)", "800m Repeats (Race Pace)", "1000m Repeats (Cruise Intervals)", "1 Mile Repeats (Threshold)"
+            "200m Repeats (Speed/Turnover)",
+            "400m Repeats (Mile Race Pace)",
+            "400m Repeats (VO2 Max)", 
+            "400m Repeats (Threshold / Short Rest)",
+            "800m Repeats (Race Pace)", 
+            "1000m Repeats (Cruise Intervals)", 
+            "1200m Repeats (VO2 Max)",
+            "1 Mile Repeats (Threshold)"
         ])
     
     int_5k_sec = parse_time(interval_5k_input)
 
     if int_5k_sec > 0:
         base_400_pace = (int_5k_sec / 5000) * 400
-        if workout_type == "400m Repeats (VO2 Max)":
-            rep_time, recovery, reps_suggested = base_400_pace - 4, base_400_pace - 4, "10-12 reps"
+        
+        if workout_type == "200m Repeats (Speed/Turnover)":
+            rep_time = (base_400_pace / 2) - 4
+            recovery = 90
+            reps_suggested = "8-12 reps"
+            
+        elif workout_type == "400m Repeats (Mile Race Pace)":
+            rep_time = base_400_pace - 8
+            recovery = 120
+            reps_suggested = "8-10 reps"
+            
+        elif workout_type == "400m Repeats (VO2 Max)":
+            rep_time = base_400_pace - 4 
+            recovery = rep_time           
+            reps_suggested = "10-12 reps"
+            
+        elif workout_type == "400m Repeats (Threshold / Short Rest)":
+            rep_time = base_400_pace + 2
+            recovery = 30
+            reps_suggested = "12-16 reps"
+            
         elif workout_type == "800m Repeats (Race Pace)":
-            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 800, 120, "5-6 reps"
+            rep_time = (int_5k_sec / 5000) * 800  
+            recovery = 120                        
+            reps_suggested = "5-6 reps"
+            
         elif workout_type == "1000m Repeats (Cruise Intervals)":
-            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 1000 + 5, 60, "4-5 reps"
+            rep_time = (int_5k_sec / 5000) * 1000 + 5 
+            recovery = 60                             
+            reps_suggested = "4-5 reps"
+            
+        elif workout_type == "1200m Repeats (VO2 Max)":
+            rep_time = (int_5k_sec / 5000) * 1200 - 5
+            recovery = 180
+            reps_suggested = "3-4 reps"
+            
         elif workout_type == "1 Mile Repeats (Threshold)":
-            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 1609.34 + 20, 60, "3-4 reps"
+            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
+            recovery = 60                                 
+            reps_suggested = "3-4 reps"
         
         with int_col2:
             st.info(f"**Suggested Volume:** {reps_suggested}")
@@ -416,9 +456,6 @@ with tab5:
             else:
                 st.info(f"Keep grinding! You need to drop **{format_time(pr_sec - tenth_place_sec)}** to bump the #10 spot.")
 
-# ==========================================
-# TAB 6: COLLEGE RECRUITING MATCHER (NEW)
-# ==========================================
 with tab6:
     st.header("🎓 College Recruiting Matcher")
     st.write("Enter an athlete's personal bests to see where they currently align with NCAA and NAIA program standards. *Note: These are general baseline standards for walk-on or roster consideration. Actual requirements vary heavily by school.*")
@@ -436,22 +473,17 @@ with tab6:
         st.subheader(f"📊 Standard Breakdown: {rec_event}")
         if pr_sec > 0:
             standards = RECRUITING_STANDARDS[rec_event]
-            
-            # Convert dictionary to a DataFrame for clean display
             table_data = []
             for tier, time_str in standards.items():
                 tier_sec = parse_time(time_str)
                 gap = pr_sec - tier_sec
-                
                 if gap <= 0:
                     status = "✅ Achieved"
                     gap_text = "--"
                 else:
                     status = "⏳ Keep Grinding"
                     gap_text = f"Need to drop {format_time(gap)}"
-                    
                 table_data.append({"Division Tier": tier, "Target Standard": time_str, "Status": status, "Next Steps": gap_text})
                 
             st.dataframe(pd.DataFrame(table_data), hide_index=True, use_container_width=True)
-            
             st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
