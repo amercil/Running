@@ -1,0 +1,27 @@
+# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
+TOP_10_RECORDS = {
+    "Boys 5K XC": [
+        {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
+        {"Rank": 2, "Name": "Aiden M.", "Time": "16:14", "Year": 2025},
+        {"Rank": 3, "Name": "Nic C.", "Time": "16:18", "Year": 1996},
+        {"Rank": 4, "Name": "Cale E.", "Time": "16:34", "Year": 2016},
+        {"Rank": 5, "Name": "Ben L.", "Time": "16:47", "Year": 2013},
+        {"Rank": 6, "Name": "Alex M.", "Time": "16:51", "Year": 2012},
+        {"Rank": 7, "Name": "Ryan K.", "Time": "17:01", "Year": 2012},
+        {"Rank": 8, "Name": "Ryan S.", "Time": "17:12", "Year": 2017},
+        {"Rank": 9, "Name": "Dillon S.", "Time": "17:26", "Year": 2013},
+        {"Rank": 10, "Name": "Detcho W.", "Time": "17:26", "Year": 2020}
+    ],
+    "Girls 5K XC": [
+        {"Rank": 1, "Name": "Morgan H", "Time": "18:20", "Year": 2018},
+        {"Rank": 2, "Name": "Kyndel A.", "Time": "19:08", "Year": 2017},
+        {"Rank": 3, "Name": "Evelyn M.", "Time": "19:46", "Year": 2018},
+        {"Rank": 4, "Name": "Ally B.", "Time": "19:51", "Year": 2013},
+        {"Rank": 5, "Name": "Brooke S.", "Time": "20:02", "Year": 2016},
+        {"Rank": 6, "Name": "Shallene R.", "Time": "20:03", "Year": 2012},
+        {"Rank": 7, "Name": "Tori T.", "Time": "20:04", "Year": 2013},
+        {"Rank": 8, "Name": "Maggie B.", "Time": "20:09", "Year": 2021},
+        {"Rank": 9, "Name": "Eden B.", "Time": "20:22", "Year": 2022},
+        {"Rank": 10, "Name": "Stephanie W.", "Time": "20:28", "Year": 2010}
+    ]
+}

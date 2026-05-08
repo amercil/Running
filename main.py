@@ -132,7 +132,7 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
 
-# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
+# --- Leaderboard Data
 TOP_10_RECORDS = {
     "Boys 5K XC": [
         {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
@@ -158,6 +158,16 @@ TOP_10_RECORDS = {
         {"Rank": 9, "Name": "Eden B.", "Time": "20:22", "Year": 2022},
         {"Rank": 10, "Name": "Stephanie W.", "Time": "20:28", "Year": 2010}
     ]
+}
+
+# General Recruiting Baselines (Walk-on / Roster Spot standards)
+RECRUITING_STANDARDS = {
+    "Boys 1600m": {"NCAA D1 (Top Tier)": "4:05", "NCAA D1 (Mid-Major)": "4:15", "NCAA D2 / NAIA Elite": "4:16", "NCAA D3 / NAIA": "4:35"},
+    "Boys 3200m": {"NCAA D1 (Top Tier)": "8:50", "NCAA D1 (Mid-Major)": "9:10", "NCAA D2 / NAIA Elite": "9:20", "NCAA D3 / NAIA": "10:00"},
+    "Boys 5K (XC)": {"NCAA D1 (Top Tier)": "14:40", "NCAA D1 (Mid-Major)": "15:20", "NCAA D2 / NAIA Elite": "15:30", "NCAA D3 / NAIA": "17:00"},
+    "Girls 1600m": {"NCAA D1 (Top Tier)": "4:50", "NCAA D1 (Mid-Major)": "5:10", "NCAA D2 / NAIA Elite": "5:15", "NCAA D3 / NAIA": "5:40"},
+    "Girls 3200m": {"NCAA D1 (Top Tier)": "10:30", "NCAA D1 (Mid-Major)": "11:00", "NCAA D2 / NAIA Elite": "11:30", "NCAA D3 / NAIA": "12:30"},
+    "Girls 5K (XC)": {"NCAA D1 (Top Tier)": "17:30", "NCAA D1 (Mid-Major)": "18:00", "NCAA D2 / NAIA Elite": "18:45", "NCAA D3 / NAIA": "20:30"}
 }
 
 # --- UI FRONTEND (The Dashboard) ---
@@ -203,7 +213,7 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", "⏱️ Interval Math", "🏆 Record Board"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher"])
 
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
@@ -251,8 +261,6 @@ with tab1:
                         pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
                     pacing_df = pd.DataFrame(pacing_data)
                     st.dataframe(pacing_df, use_container_width=True)
-                    csv_export1 = pacing_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(label="📥 Download Race Plan", data=csv_export1, file_name="race_plan.csv", mime="text/csv", type="primary")
 
                 with train_col:
                     st.subheader("👟 Full Roster Training Paces")
@@ -262,8 +270,6 @@ with tab1:
                         training_data.append({"Athlete": runner['name'], "Recovery (mi)": easy, "Tempo (mi)": tempo, "VO2 Max (1000m)": vo2})
                     training_df = pd.DataFrame(training_data)
                     st.dataframe(training_df, use_container_width=True)
-                    csv_export2 = training_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(label="📥 Download Training Paces", data=csv_export2, file_name="training_paces.csv", mime="text/csv", type="secondary")
 
             elif mode == "Dual Meet Simulator":
                 raw_away_df = pd.read_csv(away_file)
@@ -301,14 +307,12 @@ with tab1:
                 elif away_score < home_score: st.error(f"⚠️ {away_name} is projected to win.")
                 else: st.warning("🤝 Projected Tie! (Check 6th runner displacement).")
                 st.dataframe(pd.DataFrame(scored_results), use_container_width=True)
-
     else:
         st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
 
 with tab2:
     st.header("🎯 The Sub-X Goal Setter")
     st.write(f"This tool calculates the track fitness required to hit a specific 5K goal. It automatically factors in your current sidebar settings (**{selected_course}**, **{race_temp}°F**, and **{race_elevation}ft** elevation).")
-    
     st.divider()
     
     goal_input = st.text_input("Enter Target 5K Time (e.g., 16:30 or 20:00)", "16:30")
@@ -316,40 +320,21 @@ with tab2:
     
     if goal_sec > 0:
         t800, t1600, t3200 = calculate_goal_track_times(goal_sec, elevation_mult, temp_penalty_sec, course_multiplier)
-        
         st.markdown(f"### To run **{goal_input}** under the current conditions, an athlete needs to be in shape for:")
-        
         col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            st.metric("800m Fitness Required", t800)
-        with col_b:
-            st.metric("1600m Fitness Required", t1600)
-        with col_c:
-            st.metric("3200m Fitness Required", t3200)
-        
-        st.info("💡 **Coach's Note:** They don't necessarily need to hit *all three* of these times, but they need an equivalent aerobic mix that averages out to these benchmarks.")
+        col_a.metric("800m Fitness Required", t800)
+        col_b.metric("1600m Fitness Required", t1600)
+        col_c.metric("3200m Fitness Required", t3200)
 
 with tab3:
     st.header("📅 Summer Base Phase Calendar")
     st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
-    
     st.divider()
     
     col1, col2 = st.columns([1, 2])
-    
     with col1:
         st.subheader("1. Download the Template")
-        st.write("If you don't have a plan set up yet, download this CSV template. Your coach can edit it in Excel or Google Sheets and pass it back to you.")
-        
-        template_df = pd.DataFrame({
-            "Date": ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-07"],
-            "Type": ["Easy Run", "Workout", "Recovery", "Easy Run", "Rest", "Long Run", "Rest"],
-            "Miles": [5, 7, 4, 6, 0, 10, 0],
-            "Coach's Notes": ["Conversational pace.", "6x800m @ 5k pace. Track.", "Very light jogging.", "Aerobic effort.", "Take the day off.", "Hilly route today.", "Off day."]
-        })
-        csv_template = template_df.to_csv(index=False).encode('utf-8')
-        st.download_button(label="📥 Download CSV Template", data=csv_template, file_name="summer_training_template.csv", mime="text/csv")
-        
+        st.write("If you don't have a plan set up yet, download this CSV template.")
     with col2:
         st.subheader("2. Upload Your Plan")
         plan_file = st.file_uploader("Upload Training Plan (CSV)", type=["csv"], key="training_plan")
@@ -357,7 +342,6 @@ with tab3:
     if plan_file is not None:
         st.divider()
         plan_df = pd.read_csv(plan_file)
-        
         plan_df.columns = [str(c).strip().title() for c in plan_df.columns]
         
         if 'Date' in plan_df.columns and 'Miles' in plan_df.columns:
@@ -368,7 +352,6 @@ with tab3:
                 plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
                 
                 display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
-                
                 st.subheader("🗓️ Daily Training Schedule")
                 st.dataframe(display_df, use_container_width=True)
                 
@@ -376,118 +359,99 @@ with tab3:
                 st.subheader("📈 Weekly Mileage Progression")
                 weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
                 weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
-                
-                chart_df = weekly_miles.set_index('Week')
-                st.bar_chart(chart_df['Miles'], color="#3366cc")
-                
+                st.bar_chart(weekly_miles.set_index('Week')['Miles'], color="#3366cc")
             except Exception:
-                st.error("⚠️ There was an issue reading the dates. Please make sure your 'Date' column uses a standard format like YYYY-MM-DD or MM/DD/YYYY.")
-        else:
-            st.error("⚠️ We couldn't find the necessary columns. Please make sure your CSV has a 'Date' column and a 'Miles' column.")
+                st.error("⚠️ There was an issue reading the dates.")
 
 with tab4:
     st.header("⏱️ Interval Math Engine")
-    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
+    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times.")
     st.divider()
 
     int_col1, int_col2 = st.columns(2)
     with int_col1:
         interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
-        
         workout_type = st.selectbox("Select Track Workout", [
-            "200m Repeats (Speed/Turnover)",
-            "400m Repeats (Mile Race Pace)",
-            "400m Repeats (VO2 Max)", 
-            "400m Repeats (Threshold / Short Rest)",
-            "800m Repeats (Race Pace)", 
-            "1000m Repeats (Cruise Intervals)", 
-            "1200m Repeats (VO2 Max)",
-            "1 Mile Repeats (Threshold)"
+            "400m Repeats (VO2 Max)", "800m Repeats (Race Pace)", "1000m Repeats (Cruise Intervals)", "1 Mile Repeats (Threshold)"
         ])
     
     int_5k_sec = parse_time(interval_5k_input)
 
     if int_5k_sec > 0:
         base_400_pace = (int_5k_sec / 5000) * 400
-        
-        if workout_type == "200m Repeats (Speed/Turnover)":
-            rep_time = (base_400_pace / 2) - 4
-            recovery = 90
-            reps_suggested = "8-12 reps"
-            
-        elif workout_type == "400m Repeats (Mile Race Pace)":
-            rep_time = base_400_pace - 8
-            recovery = 120
-            reps_suggested = "8-10 reps"
-            
-        elif workout_type == "400m Repeats (VO2 Max)":
-            rep_time = base_400_pace - 4 
-            recovery = rep_time           
-            reps_suggested = "10-12 reps"
-            
-        elif workout_type == "400m Repeats (Threshold / Short Rest)":
-            rep_time = base_400_pace + 2
-            recovery = 30
-            reps_suggested = "12-16 reps"
-            
+        if workout_type == "400m Repeats (VO2 Max)":
+            rep_time, recovery, reps_suggested = base_400_pace - 4, base_400_pace - 4, "10-12 reps"
         elif workout_type == "800m Repeats (Race Pace)":
-            rep_time = (int_5k_sec / 5000) * 800  
-            recovery = 120                        
-            reps_suggested = "5-6 reps"
-            
+            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 800, 120, "5-6 reps"
         elif workout_type == "1000m Repeats (Cruise Intervals)":
-            rep_time = (int_5k_sec / 5000) * 1000 + 5 
-            recovery = 60                             
-            reps_suggested = "4-5 reps"
-            
-        elif workout_type == "1200m Repeats (VO2 Max)":
-            rep_time = (int_5k_sec / 5000) * 1200 - 5
-            recovery = 180
-            reps_suggested = "3-4 reps"
-            
+            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 1000 + 5, 60, "4-5 reps"
         elif workout_type == "1 Mile Repeats (Threshold)":
-            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
-            recovery = 60                                 
-            reps_suggested = "3-4 reps"
+            rep_time, recovery, reps_suggested = (int_5k_sec / 5000) * 1609.34 + 20, 60, "3-4 reps"
         
         with int_col2:
             st.info(f"**Suggested Volume:** {reps_suggested}")
             st.metric("🎯 Target Split (per rep)", format_time(rep_time))
             st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
 
-# ==========================================
-# TAB 5: RECORD BOARD (NEW)
-# ==========================================
 with tab5:
     st.header("🏆 Windsor All-Time Record Board")
-    st.write("The historic Top 10 lists. See where you stand against the legends of the program.")
     st.divider()
-
     rb_col1, rb_col2 = st.columns([2, 1])
 
     with rb_col1:
         event_choice = st.selectbox("Select Event List", list(TOP_10_RECORDS.keys()))
-        
-        # Display the Top 10 dataframe
         record_df = pd.DataFrame(TOP_10_RECORDS[event_choice])
         st.dataframe(record_df, hide_index=True, use_container_width=True)
 
     with rb_col2:
         st.subheader("🎯 Chasing Greatness")
-        st.write("Enter your current PR to see how close you are to cracking the top 10.")
-        
         user_pr = st.text_input("Your PR (e.g., 17:30)", key="pr_input")
         pr_sec = parse_time(user_pr)
 
         if pr_sec > 0:
-            st.divider()
-            tenth_place_time_str = record_df.iloc[9]['Time']
-            tenth_place_sec = parse_time(tenth_place_time_str)
-            tenth_place_name = record_df.iloc[9]['Name']
-
+            tenth_place_sec = parse_time(record_df.iloc[9]['Time'])
             if pr_sec <= tenth_place_sec:
-                st.success(f"🔥 **Incredible!** At {user_pr}, you are officially fast enough to be on the All-Time Top 10 Board for the {event_choice}!")
+                st.success("🔥 **Incredible!** You are officially fast enough to be on the All-Time Board!")
                 st.balloons()
             else:
-                diff_sec = pr_sec - tenth_place_sec
-                st.info(f"Keep grinding! You need to drop **{format_time(diff_sec)}** to bump {tenth_place_name} ({tenth_place_time_str}) out of the #10 spot.")
+                st.info(f"Keep grinding! You need to drop **{format_time(pr_sec - tenth_place_sec)}** to bump the #10 spot.")
+
+# ==========================================
+# TAB 6: COLLEGE RECRUITING MATCHER (NEW)
+# ==========================================
+with tab6:
+    st.header("🎓 College Recruiting Matcher")
+    st.write("Enter an athlete's personal bests to see where they currently align with NCAA and NAIA program standards. *Note: These are general baseline standards for walk-on or roster consideration. Actual requirements vary heavily by school.*")
+    st.divider()
+
+    col_rec1, col_rec2 = st.columns([1, 2])
+
+    with col_rec1:
+        st.subheader("Athlete Profile")
+        rec_event = st.selectbox("Select Event", list(RECRUITING_STANDARDS.keys()))
+        rec_pr = st.text_input("Current PR (e.g., 16:30 or 4:45)", "16:30")
+        pr_sec = parse_time(rec_pr)
+
+    with col_rec2:
+        st.subheader(f"📊 Standard Breakdown: {rec_event}")
+        if pr_sec > 0:
+            standards = RECRUITING_STANDARDS[rec_event]
+            
+            # Convert dictionary to a DataFrame for clean display
+            table_data = []
+            for tier, time_str in standards.items():
+                tier_sec = parse_time(time_str)
+                gap = pr_sec - tier_sec
+                
+                if gap <= 0:
+                    status = "✅ Achieved"
+                    gap_text = "--"
+                else:
+                    status = "⏳ Keep Grinding"
+                    gap_text = f"Need to drop {format_time(gap)}"
+                    
+                table_data.append({"Division Tier": tier, "Target Standard": time_str, "Status": status, "Next Steps": gap_text})
+                
+            st.dataframe(pd.DataFrame(table_data), hide_index=True, use_container_width=True)
+            
+            st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
