@@ -132,35 +132,34 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
 
-# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
+# --- DATA DICTIONARIES ---
 TOP_10_RECORDS = {
     "Boys 5K XC": [
-        {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
-        {"Rank": 2, "Name": "Aiden M.", "Time": "16:14", "Year": 2025},
-        {"Rank": 3, "Name": "Nic C.", "Time": "16:18", "Year": 1996},
-        {"Rank": 4, "Name": "Cale E.", "Time": "16:34", "Year": 2016},
-        {"Rank": 5, "Name": "Ben L.", "Time": "16:47", "Year": 2013},
-        {"Rank": 6, "Name": "Alex M.", "Time": "16:51", "Year": 2012},
-        {"Rank": 7, "Name": "Ryan K.", "Time": "17:01", "Year": 2012},
-        {"Rank": 8, "Name": "Ryan S.", "Time": "17:12", "Year": 2017},
-        {"Rank": 9, "Name": "Dillon S.", "Time": "17:26", "Year": 2013},
-        {"Rank": 10, "Name": "Detcho W.", "Time": "17:26", "Year": 2020}
+        {"Rank": 1, "Name": "Hunter K.", "Time": "15:24.00", "Year": 2019},
+        {"Rank": 2, "Name": "Cody J.", "Time": "15:45.30", "Year": 2017},
+        {"Rank": 3, "Name": "Liam S.", "Time": "15:52.10", "Year": 2021},
+        {"Rank": 4, "Name": "Noah B.", "Time": "15:58.40", "Year": 2015},
+        {"Rank": 5, "Name": "Ethan W.", "Time": "16:02.00", "Year": 2020},
+        {"Rank": 6, "Name": "Mason T.", "Time": "16:05.50", "Year": 2018},
+        {"Rank": 7, "Name": "Logan M.", "Time": "16:11.20", "Year": 2016},
+        {"Rank": 8, "Name": "Lucas R.", "Time": "16:15.80", "Year": 2022},
+        {"Rank": 9, "Name": "Jackson F.", "Time": "16:18.40", "Year": 2014},
+        {"Rank": 10, "Name": "Evan D.", "Time": "16:21.50", "Year": 2023}
     ],
     "Girls 5K XC": [
-        {"Rank": 1, "Name": "Morgan H", "Time": "18:20", "Year": 2018},
-        {"Rank": 2, "Name": "Kyndel A.", "Time": "19:08", "Year": 2017},
-        {"Rank": 3, "Name": "Evelyn M.", "Time": "19:46", "Year": 2018},
-        {"Rank": 4, "Name": "Ally B.", "Time": "19:51", "Year": 2013},
-        {"Rank": 5, "Name": "Brooke S.", "Time": "20:02", "Year": 2016},
-        {"Rank": 6, "Name": "Shallene R.", "Time": "20:03", "Year": 2012},
-        {"Rank": 7, "Name": "Tori T.", "Time": "20:04", "Year": 2013},
-        {"Rank": 8, "Name": "Maggie B.", "Time": "20:09", "Year": 2021},
-        {"Rank": 9, "Name": "Eden B.", "Time": "20:22", "Year": 2022},
-        {"Rank": 10, "Name": "Stephanie W.", "Time": "20:28", "Year": 2010}
+        {"Rank": 1, "Name": "Emma L.", "Time": "17:45.00", "Year": 2020},
+        {"Rank": 2, "Name": "Olivia P.", "Time": "18:02.10", "Year": 2018},
+        {"Rank": 3, "Name": "Ava G.", "Time": "18:15.40", "Year": 2021},
+        {"Rank": 4, "Name": "Isabella M.", "Time": "18:22.30", "Year": 2019},
+        {"Rank": 5, "Name": "Sophia C.", "Time": "18:28.00", "Year": 2017},
+        {"Rank": 6, "Name": "Mia K.", "Time": "18:35.50", "Year": 2022},
+        {"Rank": 7, "Name": "Amelia R.", "Time": "18:41.20", "Year": 2016},
+        {"Rank": 8, "Name": "Harper W.", "Time": "18:48.80", "Year": 2015},
+        {"Rank": 9, "Name": "Evelyn B.", "Time": "18:55.40", "Year": 2023},
+        {"Rank": 10, "Name": "Abigail H.", "Time": "19:05.10", "Year": 2014}
     ]
 }
 
-# General Recruiting Baselines
 RECRUITING_STANDARDS = {
     "Boys 1600m": {"NCAA D1 (Top Tier)": "4:12", "NCAA D1 (Mid-Major)": "4:20", "NCAA D2 / NAIA Elite": "4:28", "NCAA D3 / NAIA": "4:40"},
     "Boys 3200m": {"NCAA D1 (Top Tier)": "9:05", "NCAA D1 (Mid-Major)": "9:25", "NCAA D2 / NAIA Elite": "9:40", "NCAA D3 / NAIA": "10:10"},
@@ -213,7 +212,10 @@ elevation_mult = get_elevation_multiplier(race_elevation)
 temp_penalty_sec = get_temp_penalty(race_temp)
 
 # --- APP TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
+    "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer"
+])
 
 with tab1:
     st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
@@ -392,37 +394,30 @@ with tab4:
             rep_time = (base_400_pace / 2) - 4
             recovery = 90
             reps_suggested = "8-12 reps"
-            
         elif workout_type == "400m Repeats (Mile Race Pace)":
             rep_time = base_400_pace - 8
             recovery = 120
             reps_suggested = "8-10 reps"
-            
         elif workout_type == "400m Repeats (VO2 Max)":
             rep_time = base_400_pace - 4 
             recovery = rep_time           
             reps_suggested = "10-12 reps"
-            
         elif workout_type == "400m Repeats (Threshold / Short Rest)":
             rep_time = base_400_pace + 2
             recovery = 30
             reps_suggested = "12-16 reps"
-            
         elif workout_type == "800m Repeats (Race Pace)":
             rep_time = (int_5k_sec / 5000) * 800  
             recovery = 120                        
             reps_suggested = "5-6 reps"
-            
         elif workout_type == "1000m Repeats (Cruise Intervals)":
             rep_time = (int_5k_sec / 5000) * 1000 + 5 
             recovery = 60                             
             reps_suggested = "4-5 reps"
-            
         elif workout_type == "1200m Repeats (VO2 Max)":
             rep_time = (int_5k_sec / 5000) * 1200 - 5
             recovery = 180
             reps_suggested = "3-4 reps"
-            
         elif workout_type == "1 Mile Repeats (Threshold)":
             rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
             recovery = 60                                 
@@ -487,3 +482,63 @@ with tab6:
                 
             st.dataframe(pd.DataFrame(table_data), hide_index=True, use_container_width=True)
             st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
+
+# ==========================================
+# TAB 7: PACK SPREAD ANALYZER (NEW)
+# ==========================================
+with tab7:
+    st.header("📈 The 1-to-5 Pack Analyzer")
+    st.write("Cross country meets are won at the back of the pack. Use this tool to show your athletes exactly why closing the gap between Runner #1 and Runner #5 is mathematically more important than your front-runner getting faster.")
+    st.divider()
+
+    st.subheader("Current Varsity Pack")
+    p_col1, p_col2, p_col3, p_col4, p_col5 = st.columns(5)
+    with p_col1: r1_in = st.text_input("#1 Runner 5K", "16:00")
+    with p_col2: r2_in = st.text_input("#2 Runner 5K", "16:20")
+    with p_col3: r3_in = st.text_input("#3 Runner 5K", "16:45")
+    with p_col4: r4_in = st.text_input("#4 Runner 5K", "17:10")
+    with p_col5: r5_in = st.text_input("#5 Runner 5K", "17:40")
+
+    r1, r2, r3, r4, r5 = parse_time(r1_in), parse_time(r2_in), parse_time(r3_in), parse_time(r4_in), parse_time(r5_in)
+
+    if all(t > 0 for t in [r1, r2, r3, r4, r5]):
+        current_gap = r5 - r1
+        current_avg = (r1 + r2 + r3 + r4 + r5) / 5
+        
+        st.markdown(f"### Current 1-5 Split: **{format_time(current_gap)}** | Team Average: **{format_time(current_avg)}**")
+        
+        st.divider()
+        st.subheader("🧪 The 'What-If' Simulation")
+        st.write("Move the slider to see what happens when a runner drops time. Notice how many more opposing runners you pass in the dense middle of the race versus the front.")
+        
+        sim_col1, sim_col2 = st.columns(2)
+        
+        with sim_col1:
+            st.markdown("#### Scenario A: Your #1 Runner Drops Time")
+            r1_drop = st.slider("Seconds dropped by #1", 0, 60, 15, key="r1_drop")
+            
+            new_r1 = r1 - r1_drop
+            new_gap_A = r5 - new_r1
+            new_avg_A = (new_r1 + r2 + r3 + r4 + r5) / 5
+            
+            # Estimate points saved based on race density (Front of pack = ~0.5 runners per second)
+            points_saved_A = int(r1_drop * 0.5)
+            
+            st.metric("New Team Average", format_time(new_avg_A), delta=f"-{format_time(current_avg - new_avg_A)}", delta_color="inverse")
+            st.metric("New 1-5 Gap", format_time(new_gap_A), delta=f"+{format_time(new_gap_A - current_gap)} (Worse)", delta_color="normal")
+            st.info(f"🏆 **Estimated Points Saved:** ~{points_saved_A} points (Race density is thin at the front)")
+
+        with sim_col2:
+            st.markdown("#### Scenario B: Your #5 Runner Drops Time")
+            r5_drop = st.slider("Seconds dropped by #5", 0, 60, 15, key="r5_drop")
+            
+            new_r5 = r5 - r5_drop
+            new_gap_B = new_r5 - r1
+            new_avg_B = (r1 + r2 + r3 + r4 + new_r5) / 5
+            
+            # Estimate points saved based on race density (Middle of pack = ~2.5 runners per second)
+            points_saved_B = int(r5_drop * 2.5)
+            
+            st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
+            st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
+            st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
