@@ -171,9 +171,15 @@ RECRUITING_STANDARDS = {
 
 # --- UI FRONTEND (The Dashboard) ---
 st.set_page_config(page_title="The Lactic Lab", layout="wide")
-st.title("🏃‍♂️ The Lactic Lab")
 
-# --- LIVE WEATHER SIDEBAR WIDGET ---
+# ==========================================
+# MASTER NAVIGATION (THE ROUTER)
+# ==========================================
+st.sidebar.title("🧭 The Lactic Lab")
+app_mode = st.sidebar.radio("Select Season:", ["🍂 Cross Country", "👟 Track & Field"])
+st.sidebar.divider()
+
+# --- LIVE WEATHER SIDEBAR WIDGET (Global - shows in both modes) ---
 st.sidebar.header("🌤️ Live Windsor Conditions")
 live_temp, live_aqi = get_live_conditions()
 
@@ -195,350 +201,370 @@ else:
 
 st.sidebar.divider()
 
-# --- SIDEBAR CONTROLS (Global) ---
-st.sidebar.header("📍 Course Selection")
-selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
-course_multiplier = CO_COURSES[selected_course]["mult"]
-course_pace_strategy = CO_COURSES[selected_course]["splits"]
 
-st.sidebar.divider()
-
-st.sidebar.header("⚙️ Race Day Conditions")
-st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
-race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
-race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
-
-elevation_mult = get_elevation_multiplier(race_elevation)
-temp_penalty_sec = get_temp_penalty(race_temp)
-
-# --- APP TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
-    "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer"
-])
-
-with tab1:
-    st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
-    st.divider()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        home_name = st.text_input("Home Team Name", "Windsor")
-        home_file = st.file_uploader("Upload Home Roster", type=["csv"], key="home")
-    with col2:
-        away_name = st.text_input("Rival Team Name", "Rival HS")
-        away_file = st.file_uploader("Upload Rival Roster", type=["csv"], key="away")
-
-    if home_file is not None:
-        raw_home_df = pd.read_csv(home_file)
-        home_df = standardize_roster(raw_home_df)
-        mode = "Dual Meet Simulator" if away_file is not None else "Single Team Analytics"
-        
-        if st.button(f"Run {mode}", type="primary", use_container_width=True):
-            home_runners = process_team_data(home_df, home_name, elevation_mult, temp_penalty_sec, course_multiplier)
-            
-            if mode == "Single Team Analytics":
-                home_runners.sort(key=lambda x: x['predicted_5k'])
-                varsity_squad = home_runners[:5]
-                
-                st.subheader(f"🏆 {home_name} Predicted Varsity Squad")
-                cols = st.columns(5)
-                for i, runner in enumerate(varsity_squad):
-                    with cols[i]:
-                        st.metric(label=f"#{i+1} Runner", value=runner['name'], delta=format_time(runner['predicted_5k']), delta_color="off")
-                
-                st.divider()
-                st.subheader("📊 Pack Spread Visualization")
-                chart_df = pd.DataFrame({"Athlete": [r['name'] for r in varsity_squad], "Time (Seconds)": [r['predicted_5k'] for r in varsity_squad]}).set_index("Athlete")
-                st.bar_chart(chart_df, color="#ff4b4b")
-                
-                st.divider()
-                exec_col, train_col = st.columns(2)
-                
-                with exec_col:
-                    st.subheader(f"⏱️ Varsity Race Execution: {selected_course}")
-                    pacing_data = []
-                    for runner in varsity_squad:
-                        m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'], course_pace_strategy)
-                        pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
-                    pacing_df = pd.DataFrame(pacing_data)
-                    st.dataframe(pacing_df, use_container_width=True)
-
-                with train_col:
-                    st.subheader("👟 Full Roster Training Paces")
-                    training_data = []
-                    for runner in home_runners:
-                        easy, tempo, vo2 = calculate_training_paces(runner['predicted_5k'])
-                        training_data.append({"Athlete": runner['name'], "Recovery (mi)": easy, "Tempo (mi)": tempo, "VO2 Max (1000m)": vo2})
-                    training_df = pd.DataFrame(training_data)
-                    st.dataframe(training_df, use_container_width=True)
-
-            elif mode == "Dual Meet Simulator":
-                raw_away_df = pd.read_csv(away_file)
-                away_df = standardize_roster(raw_away_df)
-                away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec, course_multiplier)
-                
-                all_runners = home_runners + away_runners
-                all_runners.sort(key=lambda x: x['predicted_5k'])
-                
-                home_count, away_count, current_points = 0, 0, 1
-                home_score, away_score = 0, 0
-                scored_results = []
-                
-                for runner in all_runners:
-                    team = runner['team']
-                    if team == home_name:
-                        home_count += 1
-                        if home_count <= 7:
-                            points = current_points
-                            if home_count <= 5: home_score += points
-                            scored_results.append({'Place': current_points, 'Name': runner['name'], 'Team': team, 'Time': format_time(runner['predicted_5k']), 'Points': points if home_count <= 5 else '(Displacer)'})
-                            current_points += 1
-                    elif team == away_name:
-                        away_count += 1
-                        if away_count <= 7:
-                            points = current_points
-                            if away_count <= 5: away_score += points
-                            scored_results.append({'Place': current_points, 'Name': runner['name'], 'Team': team, 'Time': format_time(runner['predicted_5k']), 'Points': points if away_count <= 5 else '(Displacer)'})
-                            current_points += 1
-
-                st.divider()
-                st.subheader("🏁 Dual Meet Simulation Results")
-                st.markdown(f"### **{home_name}: {home_score}** | **{away_name}: {away_score}**")
-                if home_score < away_score: st.success(f"🏆 {home_name} is projected to win!")
-                elif away_score < home_score: st.error(f"⚠️ {away_name} is projected to win.")
-                else: st.warning("🤝 Projected Tie! (Check 6th runner displacement).")
-                st.dataframe(pd.DataFrame(scored_results), use_container_width=True)
-    else:
-        st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
-
-with tab2:
-    st.header("🎯 The Sub-X Goal Setter")
-    st.write(f"This tool calculates the track fitness required to hit a specific 5K goal. It automatically factors in your current sidebar settings (**{selected_course}**, **{race_temp}°F**, and **{race_elevation}ft** elevation).")
-    st.divider()
+# ==========================================
+# 🍂 CROSS COUNTRY DASHBOARD
+# ==========================================
+if app_mode == "🍂 Cross Country":
+    st.title("🍂 Cross Country Dashboard")
     
-    goal_input = st.text_input("Enter Target 5K Time (e.g., 16:30 or 20:00)", "16:30")
-    goal_sec = parse_time(goal_input)
-    
-    if goal_sec > 0:
-        t800, t1600, t3200 = calculate_goal_track_times(goal_sec, elevation_mult, temp_penalty_sec, course_multiplier)
-        st.markdown(f"### To run **{goal_input}** under the current conditions, an athlete needs to be in shape for:")
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("800m Fitness Required", t800)
-        col_b.metric("1600m Fitness Required", t1600)
-        col_c.metric("3200m Fitness Required", t3200)
+    # --- SIDEBAR CONTROLS (XC Specific Only) ---
+    st.sidebar.header("📍 Course Selection")
+    selected_course = st.sidebar.selectbox("Select Race Course", list(CO_COURSES.keys()))
+    course_multiplier = CO_COURSES[selected_course]["mult"]
+    course_pace_strategy = CO_COURSES[selected_course]["splits"]
 
-with tab3:
-    st.header("📅 Summer Base Phase Calendar")
-    st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
-    st.divider()
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.subheader("1. Download the Template")
-        st.write("If you don't have a plan set up yet, download this CSV template.")
-    with col2:
-        st.subheader("2. Upload Your Plan")
-        plan_file = st.file_uploader("Upload Training Plan (CSV)", type=["csv"], key="training_plan")
+    st.sidebar.divider()
 
-    if plan_file is not None:
+    st.sidebar.header("⚙️ Race Day Conditions")
+    st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
+    race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
+    race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
+
+    elevation_mult = get_elevation_multiplier(race_elevation)
+    temp_penalty_sec = get_temp_penalty(race_temp)
+
+    # --- XC TABS ---
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
+        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer"
+    ])
+
+    with tab1:
+        st.write("Upload raw CSV exports from Athletic.net or MileSplit. The app will automatically clean and map the data.")
         st.divider()
-        plan_df = pd.read_csv(plan_file)
-        plan_df.columns = [str(c).strip().title() for c in plan_df.columns]
-        
-        if 'Date' in plan_df.columns and 'Miles' in plan_df.columns:
-            try:
-                plan_df['Date Object'] = pd.to_datetime(plan_df['Date'])
-                plan_df = plan_df.sort_values(by="Date Object")
-                plan_df['Date'] = plan_df['Date Object'].dt.strftime('%a, %b %d')
-                plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
+
+        col1, col2 = st.columns(2)
+        with col1:
+            home_name = st.text_input("Home Team Name", "Windsor")
+            home_file = st.file_uploader("Upload Home Roster", type=["csv"], key="home")
+        with col2:
+            away_name = st.text_input("Rival Team Name", "Rival HS")
+            away_file = st.file_uploader("Upload Rival Roster", type=["csv"], key="away")
+
+        if home_file is not None:
+            raw_home_df = pd.read_csv(home_file)
+            home_df = standardize_roster(raw_home_df)
+            mode = "Dual Meet Simulator" if away_file is not None else "Single Team Analytics"
+            
+            if st.button(f"Run {mode}", type="primary", use_container_width=True):
+                home_runners = process_team_data(home_df, home_name, elevation_mult, temp_penalty_sec, course_multiplier)
                 
-                display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
-                st.subheader("🗓️ Daily Training Schedule")
-                st.dataframe(display_df, use_container_width=True)
-                
-                st.divider()
-                st.subheader("📈 Weekly Mileage Progression")
-                weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
-                weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
-                st.bar_chart(weekly_miles.set_index('Week')['Miles'], color="#3366cc")
-            except Exception:
-                st.error("⚠️ There was an issue reading the dates.")
+                if mode == "Single Team Analytics":
+                    home_runners.sort(key=lambda x: x['predicted_5k'])
+                    varsity_squad = home_runners[:5]
+                    
+                    st.subheader(f"🏆 {home_name} Predicted Varsity Squad")
+                    cols = st.columns(5)
+                    for i, runner in enumerate(varsity_squad):
+                        with cols[i]:
+                            st.metric(label=f"#{i+1} Runner", value=runner['name'], delta=format_time(runner['predicted_5k']), delta_color="off")
+                    
+                    st.divider()
+                    st.subheader("📊 Pack Spread Visualization")
+                    chart_df = pd.DataFrame({"Athlete": [r['name'] for r in varsity_squad], "Time (Seconds)": [r['predicted_5k'] for r in varsity_squad]}).set_index("Athlete")
+                    st.bar_chart(chart_df, color="#ff4b4b")
+                    
+                    st.divider()
+                    exec_col, train_col = st.columns(2)
+                    
+                    with exec_col:
+                        st.subheader(f"⏱️ Varsity Race Execution: {selected_course}")
+                        pacing_data = []
+                        for runner in varsity_squad:
+                            m1, m2, m3 = calculate_xc_splits(runner['predicted_5k'], course_pace_strategy)
+                            pacing_data.append({"Athlete": runner['name'], "Target Finish": format_time(runner['predicted_5k']), "Mile 1": m1, "Mile 2": m2, "Mile 3": m3})
+                        pacing_df = pd.DataFrame(pacing_data)
+                        st.dataframe(pacing_df, use_container_width=True)
 
-with tab4:
-    st.header("⏱️ Interval Math Engine")
-    st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
-    st.divider()
+                    with train_col:
+                        st.subheader("👟 Full Roster Training Paces")
+                        training_data = []
+                        for runner in home_runners:
+                            easy, tempo, vo2 = calculate_training_paces(runner['predicted_5k'])
+                            training_data.append({"Athlete": runner['name'], "Recovery (mi)": easy, "Tempo (mi)": tempo, "VO2 Max (1000m)": vo2})
+                        training_df = pd.DataFrame(training_data)
+                        st.dataframe(training_df, use_container_width=True)
 
-    int_col1, int_col2 = st.columns(2)
-    with int_col1:
-        interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
+                elif mode == "Dual Meet Simulator":
+                    raw_away_df = pd.read_csv(away_file)
+                    away_df = standardize_roster(raw_away_df)
+                    away_runners = process_team_data(away_df, away_name, elevation_mult, temp_penalty_sec, course_multiplier)
+                    
+                    all_runners = home_runners + away_runners
+                    all_runners.sort(key=lambda x: x['predicted_5k'])
+                    
+                    home_count, away_count, current_points = 0, 0, 1
+                    home_score, away_score = 0, 0
+                    scored_results = []
+                    
+                    for runner in all_runners:
+                        team = runner['team']
+                        if team == home_name:
+                            home_count += 1
+                            if home_count <= 7:
+                                points = current_points
+                                if home_count <= 5: home_score += points
+                                scored_results.append({'Place': current_points, 'Name': runner['name'], 'Team': team, 'Time': format_time(runner['predicted_5k']), 'Points': points if home_count <= 5 else '(Displacer)'})
+                                current_points += 1
+                        elif team == away_name:
+                            away_count += 1
+                            if away_count <= 7:
+                                points = current_points
+                                if away_count <= 5: away_score += points
+                                scored_results.append({'Place': current_points, 'Name': runner['name'], 'Team': team, 'Time': format_time(runner['predicted_5k']), 'Points': points if away_count <= 5 else '(Displacer)'})
+                                current_points += 1
+
+                    st.divider()
+                    st.subheader("🏁 Dual Meet Simulation Results")
+                    st.markdown(f"### **{home_name}: {home_score}** | **{away_name}: {away_score}**")
+                    if home_score < away_score: st.success(f"🏆 {home_name} is projected to win!")
+                    elif away_score < home_score: st.error(f"⚠️ {away_name} is projected to win.")
+                    else: st.warning("🤝 Projected Tie! (Check 6th runner displacement).")
+                    st.dataframe(pd.DataFrame(scored_results), use_container_width=True)
+        else:
+            st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
+
+    with tab2:
+        st.header("🎯 The Sub-X Goal Setter")
+        st.write(f"This tool calculates the track fitness required to hit a specific 5K goal. It automatically factors in your current sidebar settings (**{selected_course}**, **{race_temp}°F**, and **{race_elevation}ft** elevation).")
+        st.divider()
         
-        workout_type = st.selectbox("Select Track Workout", [
-            "200m Repeats (Speed/Turnover)",
-            "400m Repeats (Mile Race Pace)",
-            "400m Repeats (VO2 Max)", 
-            "400m Repeats (Threshold / Short Rest)",
-            "800m Repeats (Race Pace)", 
-            "1000m Repeats (Cruise Intervals)", 
-            "1200m Repeats (VO2 Max)",
-            "1 Mile Repeats (Threshold)"
-        ])
-    
-    int_5k_sec = parse_time(interval_5k_input)
-
-    if int_5k_sec > 0:
-        base_400_pace = (int_5k_sec / 5000) * 400
+        goal_input = st.text_input("Enter Target 5K Time (e.g., 16:30 or 20:00)", "16:30")
+        goal_sec = parse_time(goal_input)
         
-        if workout_type == "200m Repeats (Speed/Turnover)":
-            rep_time = (base_400_pace / 2) - 4
-            recovery = 90
-            reps_suggested = "8-12 reps"
-        elif workout_type == "400m Repeats (Mile Race Pace)":
-            rep_time = base_400_pace - 8
-            recovery = 120
-            reps_suggested = "8-10 reps"
-        elif workout_type == "400m Repeats (VO2 Max)":
-            rep_time = base_400_pace - 4 
-            recovery = rep_time           
-            reps_suggested = "10-12 reps"
-        elif workout_type == "400m Repeats (Threshold / Short Rest)":
-            rep_time = base_400_pace + 2
-            recovery = 30
-            reps_suggested = "12-16 reps"
-        elif workout_type == "800m Repeats (Race Pace)":
-            rep_time = (int_5k_sec / 5000) * 800  
-            recovery = 120                        
-            reps_suggested = "5-6 reps"
-        elif workout_type == "1000m Repeats (Cruise Intervals)":
-            rep_time = (int_5k_sec / 5000) * 1000 + 5 
-            recovery = 60                             
-            reps_suggested = "4-5 reps"
-        elif workout_type == "1200m Repeats (VO2 Max)":
-            rep_time = (int_5k_sec / 5000) * 1200 - 5
-            recovery = 180
-            reps_suggested = "3-4 reps"
-        elif workout_type == "1 Mile Repeats (Threshold)":
-            rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
-            recovery = 60                                 
-            reps_suggested = "3-4 reps"
+        if goal_sec > 0:
+            t800, t1600, t3200 = calculate_goal_track_times(goal_sec, elevation_mult, temp_penalty_sec, course_multiplier)
+            st.markdown(f"### To run **{goal_input}** under the current conditions, an athlete needs to be in shape for:")
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("800m Fitness Required", t800)
+            col_b.metric("1600m Fitness Required", t1600)
+            col_c.metric("3200m Fitness Required", t3200)
+
+    with tab3:
+        st.header("📅 Summer Base Phase Calendar")
+        st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
+        st.divider()
         
-        with int_col2:
-            st.info(f"**Suggested Volume:** {reps_suggested}")
-            st.metric("🎯 Target Split (per rep)", format_time(rep_time))
-            st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.subheader("1. Download the Template")
+            st.write("If you don't have a plan set up yet, download this CSV template.")
+        with col2:
+            st.subheader("2. Upload Your Plan")
+            plan_file = st.file_uploader("Upload Training Plan (CSV)", type=["csv"], key="training_plan")
 
-with tab5:
-    st.header("🏆 Windsor All-Time Record Board")
-    st.divider()
-    rb_col1, rb_col2 = st.columns([2, 1])
+        if plan_file is not None:
+            st.divider()
+            plan_df = pd.read_csv(plan_file)
+            plan_df.columns = [str(c).strip().title() for c in plan_df.columns]
+            
+            if 'Date' in plan_df.columns and 'Miles' in plan_df.columns:
+                try:
+                    plan_df['Date Object'] = pd.to_datetime(plan_df['Date'])
+                    plan_df = plan_df.sort_values(by="Date Object")
+                    plan_df['Date'] = plan_df['Date Object'].dt.strftime('%a, %b %d')
+                    plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
+                    
+                    display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
+                    st.subheader("🗓️ Daily Training Schedule")
+                    st.dataframe(display_df, use_container_width=True)
+                    
+                    st.divider()
+                    st.subheader("📈 Weekly Mileage Progression")
+                    weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
+                    weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
+                    st.bar_chart(weekly_miles.set_index('Week')['Miles'], color="#3366cc")
+                except Exception:
+                    st.error("⚠️ There was an issue reading the dates.")
 
-    with rb_col1:
-        event_choice = st.selectbox("Select Event List", list(TOP_10_RECORDS.keys()))
-        record_df = pd.DataFrame(TOP_10_RECORDS[event_choice])
-        st.dataframe(record_df, hide_index=True, use_container_width=True)
+    with tab4:
+        st.header("⏱️ Interval Math Engine")
+        st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
+        st.divider()
 
-    with rb_col2:
-        st.subheader("🎯 Chasing Greatness")
-        user_pr = st.text_input("Your PR (e.g., 17:30)", key="pr_input")
-        pr_sec = parse_time(user_pr)
+        int_col1, int_col2 = st.columns(2)
+        with int_col1:
+            interval_5k_input = st.text_input("Athlete's Target 5K Time (e.g., 18:00)", "18:00", key="int_5k")
+            
+            workout_type = st.selectbox("Select Track Workout", [
+                "200m Repeats (Speed/Turnover)",
+                "400m Repeats (Mile Race Pace)",
+                "400m Repeats (VO2 Max)", 
+                "400m Repeats (Threshold / Short Rest)",
+                "800m Repeats (Race Pace)", 
+                "1000m Repeats (Cruise Intervals)", 
+                "1200m Repeats (VO2 Max)",
+                "1 Mile Repeats (Threshold)"
+            ])
+        
+        int_5k_sec = parse_time(interval_5k_input)
 
-        if pr_sec > 0:
-            tenth_place_sec = parse_time(record_df.iloc[9]['Time'])
-            if pr_sec <= tenth_place_sec:
-                st.success("🔥 **Incredible!** You are officially fast enough to be on the All-Time Board!")
-                st.balloons()
-            else:
-                st.info(f"Keep grinding! You need to drop **{format_time(pr_sec - tenth_place_sec)}** to bump the #10 spot.")
+        if int_5k_sec > 0:
+            base_400_pace = (int_5k_sec / 5000) * 400
+            
+            if workout_type == "200m Repeats (Speed/Turnover)":
+                rep_time = (base_400_pace / 2) - 4
+                recovery = 90
+                reps_suggested = "8-12 reps"
+            elif workout_type == "400m Repeats (Mile Race Pace)":
+                rep_time = base_400_pace - 8
+                recovery = 120
+                reps_suggested = "8-10 reps"
+            elif workout_type == "400m Repeats (VO2 Max)":
+                rep_time = base_400_pace - 4 
+                recovery = rep_time           
+                reps_suggested = "10-12 reps"
+            elif workout_type == "400m Repeats (Threshold / Short Rest)":
+                rep_time = base_400_pace + 2
+                recovery = 30
+                reps_suggested = "12-16 reps"
+            elif workout_type == "800m Repeats (Race Pace)":
+                rep_time = (int_5k_sec / 5000) * 800  
+                recovery = 120                        
+                reps_suggested = "5-6 reps"
+            elif workout_type == "1000m Repeats (Cruise Intervals)":
+                rep_time = (int_5k_sec / 5000) * 1000 + 5 
+                recovery = 60                             
+                reps_suggested = "4-5 reps"
+            elif workout_type == "1200m Repeats (VO2 Max)":
+                rep_time = (int_5k_sec / 5000) * 1200 - 5
+                recovery = 180
+                reps_suggested = "3-4 reps"
+            elif workout_type == "1 Mile Repeats (Threshold)":
+                rep_time = (int_5k_sec / 5000) * 1609.34 + 20 
+                recovery = 60                                 
+                reps_suggested = "3-4 reps"
+            
+            with int_col2:
+                st.info(f"**Suggested Volume:** {reps_suggested}")
+                st.metric("🎯 Target Split (per rep)", format_time(rep_time))
+                st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
 
-with tab6:
-    st.header("🎓 College Recruiting Matcher")
-    st.write("Enter an athlete's personal bests to see where they currently align with NCAA and NAIA program standards. *Note: These are general baseline standards for walk-on or roster consideration. Actual requirements vary heavily by school.*")
-    st.divider()
+    with tab5:
+        st.header("🏆 Windsor All-Time Record Board")
+        st.divider()
+        rb_col1, rb_col2 = st.columns([2, 1])
 
-    col_rec1, col_rec2 = st.columns([1, 2])
+        with rb_col1:
+            event_choice = st.selectbox("Select Event List", list(TOP_10_RECORDS.keys()))
+            record_df = pd.DataFrame(TOP_10_RECORDS[event_choice])
+            st.dataframe(record_df, hide_index=True, use_container_width=True)
 
-    with col_rec1:
-        st.subheader("Athlete Profile")
-        rec_event = st.selectbox("Select Event", list(RECRUITING_STANDARDS.keys()))
-        rec_pr = st.text_input("Current PR (e.g., 16:30 or 4:45)", "16:30")
-        pr_sec = parse_time(rec_pr)
+        with rb_col2:
+            st.subheader("🎯 Chasing Greatness")
+            user_pr = st.text_input("Your PR (e.g., 17:30)", key="pr_input")
+            pr_sec = parse_time(user_pr)
 
-    with col_rec2:
-        st.subheader(f"📊 Standard Breakdown: {rec_event}")
-        if pr_sec > 0:
-            standards = RECRUITING_STANDARDS[rec_event]
-            table_data = []
-            for tier, time_str in standards.items():
-                tier_sec = parse_time(time_str)
-                gap = pr_sec - tier_sec
-                if gap <= 0:
-                    status = "✅ Achieved"
-                    gap_text = "--"
+            if pr_sec > 0:
+                tenth_place_sec = parse_time(record_df.iloc[9]['Time'])
+                if pr_sec <= tenth_place_sec:
+                    st.success("🔥 **Incredible!** You are officially fast enough to be on the All-Time Board!")
+                    st.balloons()
                 else:
-                    status = "⏳ Keep Grinding"
-                    gap_text = f"Need to drop {format_time(gap)}"
-                table_data.append({"Division Tier": tier, "Target Standard": time_str, "Status": status, "Next Steps": gap_text})
+                    st.info(f"Keep grinding! You need to drop **{format_time(pr_sec - tenth_place_sec)}** to bump the #10 spot.")
+
+    with tab6:
+        st.header("🎓 College Recruiting Matcher")
+        st.write("Enter an athlete's personal bests to see where they currently align with NCAA and NAIA program standards. *Note: These are general baseline standards for walk-on or roster consideration. Actual requirements vary heavily by school.*")
+        st.divider()
+
+        col_rec1, col_rec2 = st.columns([1, 2])
+
+        with col_rec1:
+            st.subheader("Athlete Profile")
+            rec_event = st.selectbox("Select Event", list(RECRUITING_STANDARDS.keys()))
+            rec_pr = st.text_input("Current PR (e.g., 16:30 or 4:45)", "16:30")
+            pr_sec = parse_time(rec_pr)
+
+        with col_rec2:
+            st.subheader(f"📊 Standard Breakdown: {rec_event}")
+            if pr_sec > 0:
+                standards = RECRUITING_STANDARDS[rec_event]
+                table_data = []
+                for tier, time_str in standards.items():
+                    tier_sec = parse_time(time_str)
+                    gap = pr_sec - tier_sec
+                    if gap <= 0:
+                        status = "✅ Achieved"
+                        gap_text = "--"
+                    else:
+                        status = "⏳ Keep Grinding"
+                        gap_text = f"Need to drop {format_time(gap)}"
+                    table_data.append({"Division Tier": tier, "Target Standard": time_str, "Status": status, "Next Steps": gap_text})
+                    
+                st.dataframe(pd.DataFrame(table_data), hide_index=True, use_container_width=True)
+                st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
+
+    with tab7:
+        st.header("📈 The 1-to-5 Pack Analyzer")
+        st.write("Cross country meets are won at the back of the pack. Use this tool to show your athletes exactly why closing the gap between Runner #1 and Runner #5 is mathematically more important than your front-runner getting faster.")
+        st.divider()
+
+        st.subheader("Current Varsity Pack")
+        p_col1, p_col2, p_col3, p_col4, p_col5 = st.columns(5)
+        with p_col1: r1_in = st.text_input("#1 Runner 5K", "16:00")
+        with p_col2: r2_in = st.text_input("#2 Runner 5K", "16:20")
+        with p_col3: r3_in = st.text_input("#3 Runner 5K", "16:45")
+        with p_col4: r4_in = st.text_input("#4 Runner 5K", "17:10")
+        with p_col5: r5_in = st.text_input("#5 Runner 5K", "17:40")
+
+        r1, r2, r3, r4, r5 = parse_time(r1_in), parse_time(r2_in), parse_time(r3_in), parse_time(r4_in), parse_time(r5_in)
+
+        if all(t > 0 for t in [r1, r2, r3, r4, r5]):
+            current_gap = r5 - r1
+            current_avg = (r1 + r2 + r3 + r4 + r5) / 5
+            
+            st.markdown(f"### Current 1-5 Split: **{format_time(current_gap)}** | Team Average: **{format_time(current_avg)}**")
+            
+            st.divider()
+            st.subheader("🧪 The 'What-If' Simulation")
+            st.write("Move the slider to see what happens when a runner drops time. Notice how many more opposing runners you pass in the dense middle of the race versus the front.")
+            
+            sim_col1, sim_col2 = st.columns(2)
+            
+            with sim_col1:
+                st.markdown("#### Scenario A: Your #1 Runner Drops Time")
+                r1_drop = st.slider("Seconds dropped by #1", 0, 60, 15, key="r1_drop")
                 
-            st.dataframe(pd.DataFrame(table_data), hide_index=True, use_container_width=True)
-            st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
+                new_r1 = r1 - r1_drop
+                new_gap_A = r5 - new_r1
+                new_avg_A = (new_r1 + r2 + r3 + r4 + r5) / 5
+                
+                points_saved_A = int(r1_drop * 0.5)
+                
+                st.metric("New Team Average", format_time(new_avg_A), delta=f"-{format_time(current_avg - new_avg_A)}", delta_color="inverse")
+                st.metric("New 1-5 Gap", format_time(new_gap_A), delta=f"+{format_time(new_gap_A - current_gap)} (Worse)", delta_color="normal")
+                st.info(f"🏆 **Estimated Points Saved:** ~{points_saved_A} points (Race density is thin at the front)")
+
+            with sim_col2:
+                st.markdown("#### Scenario B: Your #5 Runner Drops Time")
+                r5_drop = st.slider("Seconds dropped by #5", 0, 60, 15, key="r5_drop")
+                
+                new_r5 = r5 - r5_drop
+                new_gap_B = new_r5 - r1
+                new_avg_B = (r1 + r2 + r3 + r4 + new_r5) / 5
+                
+                points_saved_B = int(r5_drop * 2.5)
+                
+                st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
+                st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
+                st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
 
 # ==========================================
-# TAB 7: PACK SPREAD ANALYZER (NEW)
+# 👟 TRACK & FIELD DASHBOARD
 # ==========================================
-with tab7:
-    st.header("📈 The 1-to-5 Pack Analyzer")
-    st.write("Cross country meets are won at the back of the pack. Use this tool to show your athletes exactly why closing the gap between Runner #1 and Runner #5 is mathematically more important than your front-runner getting faster.")
+elif app_mode == "👟 Track & Field":
+    st.title("👟 Track & Field Dashboard")
+    st.write("Welcome to the Track season! Your tools are currently under construction.")
     st.divider()
 
-    st.subheader("Current Varsity Pack")
-    p_col1, p_col2, p_col3, p_col4, p_col5 = st.columns(5)
-    with p_col1: r1_in = st.text_input("#1 Runner 5K", "16:00")
-    with p_col2: r2_in = st.text_input("#2 Runner 5K", "16:20")
-    with p_col3: r3_in = st.text_input("#3 Runner 5K", "16:45")
-    with p_col4: r4_in = st.text_input("#4 Runner 5K", "17:10")
-    with p_col5: r5_in = st.text_input("#5 Runner 5K", "17:40")
-
-    r1, r2, r3, r4, r5 = parse_time(r1_in), parse_time(r2_in), parse_time(r3_in), parse_time(r4_in), parse_time(r5_in)
-
-    if all(t > 0 for t in [r1, r2, r3, r4, r5]):
-        current_gap = r5 - r1
-        current_avg = (r1 + r2 + r3 + r4 + r5) / 5
-        
-        st.markdown(f"### Current 1-5 Split: **{format_time(current_gap)}** | Team Average: **{format_time(current_avg)}**")
-        
-        st.divider()
-        st.subheader("🧪 The 'What-If' Simulation")
-        st.write("Move the slider to see what happens when a runner drops time. Notice how many more opposing runners you pass in the dense middle of the race versus the front.")
-        
-        sim_col1, sim_col2 = st.columns(2)
-        
-        with sim_col1:
-            st.markdown("#### Scenario A: Your #1 Runner Drops Time")
-            r1_drop = st.slider("Seconds dropped by #1", 0, 60, 15, key="r1_drop")
-            
-            new_r1 = r1 - r1_drop
-            new_gap_A = r5 - new_r1
-            new_avg_A = (new_r1 + r2 + r3 + r4 + r5) / 5
-            
-            # Estimate points saved based on race density (Front of pack = ~0.5 runners per second)
-            points_saved_A = int(r1_drop * 0.5)
-            
-            st.metric("New Team Average", format_time(new_avg_A), delta=f"-{format_time(current_avg - new_avg_A)}", delta_color="inverse")
-            st.metric("New 1-5 Gap", format_time(new_gap_A), delta=f"+{format_time(new_gap_A - current_gap)} (Worse)", delta_color="normal")
-            st.info(f"🏆 **Estimated Points Saved:** ~{points_saved_A} points (Race density is thin at the front)")
-
-        with sim_col2:
-            st.markdown("#### Scenario B: Your #5 Runner Drops Time")
-            r5_drop = st.slider("Seconds dropped by #5", 0, 60, 15, key="r5_drop")
-            
-            new_r5 = r5 - r5_drop
-            new_gap_B = new_r5 - r1
-            new_avg_B = (r1 + r2 + r3 + r4 + new_r5) / 5
-            
-            # Estimate points saved based on race density (Middle of pack = ~2.5 runners per second)
-            points_saved_B = int(r5_drop * 2.5)
-            
-            st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
-            st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
-            st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
+    # Placeholder tabs for the Track workspace
+    t_tab1, t_tab2, t_tab3 = st.tabs(["⚡ Relay Optimizer", "📏 Field Event Converter", "🔥 Sprinter Analytics"])
+    
+    with t_tab1:
+        st.info("Relay Optimizer coming soon! Time to dial in those handoffs.")
+    with t_tab2:
+        st.info("Field Event Metric/Imperial Converter coming soon.")
+    with t_tab3:
+        st.info("Sprinter analytics coming soon.")
