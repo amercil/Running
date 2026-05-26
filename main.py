@@ -554,17 +554,91 @@ if app_mode == "🍂 Cross Country":
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
 # ==========================================
+# ==========================================
+# 👟 TRACK & FIELD DASHBOARD
+# ==========================================
 elif app_mode == "👟 Track & Field":
     st.title("👟 Track & Field Dashboard")
-    st.write("Welcome to the Track season! Your tools are currently under construction.")
+    st.write("Welcome to the Track season! Let's get these athletes peaking at the right time.")
     st.divider()
 
-    # Placeholder tabs for the Track workspace
-    t_tab1, t_tab2, t_tab3 = st.tabs(["⚡ Relay Optimizer", "📏 Field Event Converter", "🔥 Sprinter Analytics"])
+    # Track Tabs
+    t_tab1, t_tab2, t_tab3 = st.tabs(["⏱️ Lap Pace Strategy", "⚡ Relay Optimizer", "📏 Field Event Converter"])
     
     with t_tab1:
-        st.info("Relay Optimizer coming soon! Time to dial in those handoffs.")
+        st.header("⏱️ Distance Pacing & Strategy Calculator")
+        st.write("Calculate exact 400m lap splits for the 1600m and 3200m based on different race execution strategies.")
+        st.divider()
+
+        pace_col1, pace_col2 = st.columns([1, 2])
+
+        with pace_col1:
+            st.subheader("Race Parameters")
+            track_event = st.selectbox("Select Event", ["1600m (4 Laps)", "3200m (8 Laps)"])
+            track_goal = st.text_input("Goal Finish Time (e.g., 5:00 or 10:30)", "5:00")
+            
+            strategy = st.radio("Race Strategy", [
+                "Even Splits (Optimal Efficiency)", 
+                "Go Out Fast & Hold On (Front Runner)", 
+                "Negative Split (Sit & Kick)"
+            ])
+            
+            goal_sec = parse_time(track_goal)
+
+        with pace_col2:
+            st.subheader("📋 Lap-by-Lap Breakdown")
+            
+            if goal_sec > 0:
+                laps = 4 if "1600m" in track_event else 8
+                base_400_pace = goal_sec / laps
+                
+                # Pace Offset Logic (Must mathematically net to 0 to hit the exact goal time)
+                offsets = []
+                if laps == 4:
+                    if "Even" in strategy: offsets = [0, 0, 0, 0]
+                    elif "Fast" in strategy: offsets = [-2.0, 0.0, 2.0, 0.0] 
+                    elif "Negative" in strategy: offsets = [2.0, 1.0, -1.0, -2.0]
+                elif laps == 8:
+                    if "Even" in strategy: offsets = [0] * 8
+                    elif "Fast" in strategy: offsets = [-3.0, -1.0, 0.0, 1.0, 2.0, 2.0, 0.0, -1.0]
+                    elif "Negative" in strategy: offsets = [2.0, 2.0, 1.0, 0.0, 0.0, -1.0, -2.0, -2.0]
+
+                pacing_plan = []
+                cumulative_time = 0
+                
+                for lap in range(laps):
+                    target_lap_sec = base_400_pace + offsets[lap]
+                    cumulative_time += target_lap_sec
+                    
+                    # Logic to highlight the critical laps
+                    note = ""
+                    if "Fast" in strategy and lap == 0: note = "🔥 Get out clean"
+                    if "Fast" in strategy and lap == laps - 2: note = "⚠️ The 'Danger' Lap - Hang tough"
+                    if "Negative" in strategy and lap == 0: note = "🧘‍♂️ Relax and tuck in"
+                    if "Negative" in strategy and lap == laps - 1: note = "🚀 Empty the tank!"
+                    if "Even" in strategy: note = "⏱️ Lock in pace"
+
+                    pacing_plan.append({
+                        "Lap": f"Lap {lap + 1}",
+                        "400m Target": format_time(target_lap_sec),
+                        "Total Time": format_time(cumulative_time),
+                        "Coach's Note": note
+                    })
+
+                st.dataframe(pd.DataFrame(pacing_plan), hide_index=True, use_container_width=True)
+                
+                # A quick sanity check to prove the math works out to the user's exact input
+                st.caption(f"**Calculated Finish Time:** {format_time(cumulative_time)} (Target: {track_goal})")
+                
+                # Explanation of the strategy
+                if "Fast" in strategy:
+                    st.info("**The Front Runner Strategy:** This requires burning early energy to get out of traffic and dictate the pace. Expect laps 3 (for 1600m) or 5-6 (for 3200m) to feel extremely heavy.")
+                elif "Negative" in strategy:
+                    st.success("**The Sit & Kick Strategy:** The most mathematically efficient way to run a PR. The goal is to feel completely relaxed through the halfway point, then hunt people down in the second half.")
+            else:
+                st.warning("Please enter a valid goal time to see the pacing chart.")
+
     with t_tab2:
-        st.info("Field Event Metric/Imperial Converter coming soon.")
+        st.info("Relay Optimizer coming soon! Time to dial in those handoffs.")
     with t_tab3:
-        st.info("Sprinter analytics coming soon.")
+        st.info("Field Event Metric/Imperial Converter coming soon.")
