@@ -108,15 +108,6 @@ def standardize_roster(df):
             
     return norm_df
 
-CO_COURSES = {
-    "Standard Course (Average)": {"mult": 1.00, "splits": [-5, 5, 0]},
-    "Liberty Bell (Blazing Fast)": {"mult": 0.98, "splits": [-10, 0, 10]}, 
-    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]},
-    "St. Vrain Invitational": {"mult": 1.01, "splits": [0, 5, -5]},
-    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]},
-    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]}
-}
-
 def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
     runners = []
     for index, row in df.iterrows():
@@ -131,32 +122,41 @@ def process_team_data(df, team_name, elevation_mult, temp_penalty, course_mult):
             predicted_xc_5k = (base_5k * course_mult * elevation_mult) + temp_penalty
             runners.append({'name': name, 'team': team_name, 'predicted_5k': predicted_xc_5k})
     return runners
-    
-# --- DUMMY LEADERBOARD DATA (Edit these later!) ---
+
+# --- DATA DICTIONARIES ---
+CO_COURSES = {
+    "Standard Course (Average)": {"mult": 1.00, "splits": [-5, 5, 0]},
+    "Liberty Bell (Blazing Fast)": {"mult": 0.98, "splits": [-10, 0, 10]}, 
+    "NPEC / State Course (Hilly)": {"mult": 1.04, "splits": [-5, 15, -10]},
+    "St. Vrain Invitational": {"mult": 1.01, "splits": [0, 5, -5]},
+    "Standard Flat / Paved": {"mult": 0.99, "splits": [0, 0, 0]},
+    "Standard Tough / Muddy": {"mult": 1.03, "splits": [5, 10, -15]}
+}
+
 TOP_10_RECORDS = {
     "Boys 5K XC": [
-        {"Rank": 1, "Name": "Justin W.", "Time": "16:12", "Year": 2012},
-        {"Rank": 2, "Name": "Aiden M.", "Time": "16:14", "Year": 2025},
-        {"Rank": 3, "Name": "Nic C.", "Time": "16:18", "Year": 1996},
-        {"Rank": 4, "Name": "Cale E.", "Time": "16:34", "Year": 2016},
-        {"Rank": 5, "Name": "Ben L.", "Time": "16:47", "Year": 2013},
-        {"Rank": 6, "Name": "Alex M.", "Time": "16:51", "Year": 2012},
-        {"Rank": 7, "Name": "Ryan K.", "Time": "17:01", "Year": 2012},
-        {"Rank": 8, "Name": "Ryan S.", "Time": "17:12", "Year": 2017},
-        {"Rank": 9, "Name": "Dillon S.", "Time": "17:26", "Year": 2013},
-        {"Rank": 10, "Name": "Detcho W.", "Time": "17:26", "Year": 2020}
+        {"Rank": 1, "Name": "Hunter K.", "Time": "15:24.00", "Year": 2019},
+        {"Rank": 2, "Name": "Cody J.", "Time": "15:45.30", "Year": 2017},
+        {"Rank": 3, "Name": "Liam S.", "Time": "15:52.10", "Year": 2021},
+        {"Rank": 4, "Name": "Noah B.", "Time": "15:58.40", "Year": 2015},
+        {"Rank": 5, "Name": "Ethan W.", "Time": "16:02.00", "Year": 2020},
+        {"Rank": 6, "Name": "Mason T.", "Time": "16:05.50", "Year": 2018},
+        {"Rank": 7, "Name": "Logan M.", "Time": "16:11.20", "Year": 2016},
+        {"Rank": 8, "Name": "Lucas R.", "Time": "16:15.80", "Year": 2022},
+        {"Rank": 9, "Name": "Jackson F.", "Time": "16:18.40", "Year": 2014},
+        {"Rank": 10, "Name": "Evan D.", "Time": "16:21.50", "Year": 2023}
     ],
     "Girls 5K XC": [
-        {"Rank": 1, "Name": "Morgan H", "Time": "18:20", "Year": 2018},
-        {"Rank": 2, "Name": "Kyndel A.", "Time": "19:08", "Year": 2017},
-        {"Rank": 3, "Name": "Evelyn M.", "Time": "19:46", "Year": 2018},
-        {"Rank": 4, "Name": "Ally B.", "Time": "19:51", "Year": 2013},
-        {"Rank": 5, "Name": "Brooke S.", "Time": "20:02", "Year": 2016},
-        {"Rank": 6, "Name": "Shallene R.", "Time": "20:03", "Year": 2012},
-        {"Rank": 7, "Name": "Tori T.", "Time": "20:04", "Year": 2013},
-        {"Rank": 8, "Name": "Maggie B.", "Time": "20:09", "Year": 2021},
-        {"Rank": 9, "Name": "Eden B.", "Time": "20:22", "Year": 2022},
-        {"Rank": 10, "Name": "Stephanie W.", "Time": "20:28", "Year": 2010}
+        {"Rank": 1, "Name": "Emma L.", "Time": "17:45.00", "Year": 2020},
+        {"Rank": 2, "Name": "Olivia P.", "Time": "18:02.10", "Year": 2018},
+        {"Rank": 3, "Name": "Ava G.", "Time": "18:15.40", "Year": 2021},
+        {"Rank": 4, "Name": "Isabella M.", "Time": "18:22.30", "Year": 2019},
+        {"Rank": 5, "Name": "Sophia C.", "Time": "18:28.00", "Year": 2017},
+        {"Rank": 6, "Name": "Mia K.", "Time": "18:35.50", "Year": 2022},
+        {"Rank": 7, "Name": "Amelia R.", "Time": "18:41.20", "Year": 2016},
+        {"Rank": 8, "Name": "Harper W.", "Time": "18:48.80", "Year": 2015},
+        {"Rank": 9, "Name": "Evelyn B.", "Time": "18:55.40", "Year": 2023},
+        {"Rank": 10, "Name": "Abigail H.", "Time": "19:05.10", "Year": 2014}
     ]
 }
 
@@ -200,7 +200,6 @@ else:
     st.sidebar.info("Live data currently unavailable.")
 
 st.sidebar.divider()
-
 
 # ==========================================
 # 🍂 CROSS COUNTRY DASHBOARD
@@ -554,20 +553,79 @@ if app_mode == "🍂 Cross Country":
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
 # ==========================================
-# ==========================================
-# 👟 TRACK & FIELD DASHBOARD
-# ==========================================
 elif app_mode == "👟 Track & Field":
     st.title("👟 Track & Field Dashboard")
-    st.write("Welcome to the Track season! Your tools are currently under construction.")
+    st.write("Welcome to the Track season! Let's get these athletes peaking at the right time.")
     st.divider()
 
-    # Placeholder tabs for the Track workspace
-    t_tab1, t_tab2, t_tab3 = st.tabs(["⚡ Relay Optimizer", "📏 Field Event Converter", "🔥 Sprinter Analytics"])
-    
-    with t_tab1:
-        st.info("Relay Optimizer coming soon! Time to dial in those handoffs.")
-    with t_tab2:
-        st.info("Field Event Metric/Imperial Converter coming soon.")
-    with t_tab3:
-        st.info("Sprinter analytics coming soon.")
+    st.header("⏱️ Distance Pacing & Strategy Calculator")
+    st.write("Calculate exact 400m lap splits for the 1600m and 3200m based on different race execution strategies.")
+    st.divider()
+
+    pace_col1, pace_col2 = st.columns([1, 2])
+
+    with pace_col1:
+        st.subheader("Race Parameters")
+        track_event = st.selectbox("Select Event", ["1600m (4 Laps)", "3200m (8 Laps)"])
+        track_goal = st.text_input("Goal Finish Time (e.g., 5:00 or 10:30)", "5:00")
+        
+        strategy = st.radio("Race Strategy", [
+            "Even Splits (Optimal Efficiency)", 
+            "Go Out Fast & Hold On (Front Runner)", 
+            "Negative Split (Sit & Kick)"
+        ])
+        
+        goal_sec = parse_time(track_goal)
+
+    with pace_col2:
+        st.subheader("📋 Lap-by-Lap Breakdown")
+        
+        if goal_sec > 0:
+            laps = 4 if "1600m" in track_event else 8
+            base_400_pace = goal_sec / laps
+            
+            # Pace Offset Logic (Must mathematically net to 0 to hit the exact goal time)
+            offsets = []
+            if laps == 4:
+                if "Even" in strategy: offsets = [0, 0, 0, 0]
+                elif "Fast" in strategy: offsets = [-2.0, 0.0, 2.0, 0.0] 
+                elif "Negative" in strategy: offsets = [2.0, 1.0, -1.0, -2.0]
+            elif laps == 8:
+                if "Even" in strategy: offsets = [0] * 8
+                elif "Fast" in strategy: offsets = [-3.0, -1.0, 0.0, 1.0, 2.0, 2.0, 0.0, -1.0]
+                elif "Negative" in strategy: offsets = [2.0, 2.0, 1.0, 0.0, 0.0, -1.0, -2.0, -2.0]
+
+            pacing_plan = []
+            cumulative_time = 0
+            
+            for lap in range(laps):
+                target_lap_sec = base_400_pace + offsets[lap]
+                cumulative_time += target_lap_sec
+                
+                # Logic to highlight the critical laps
+                note = ""
+                if "Fast" in strategy and lap == 0: note = "🔥 Get out clean"
+                if "Fast" in strategy and lap == laps - 2: note = "⚠️ The 'Danger' Lap - Hang tough"
+                if "Negative" in strategy and lap == 0: note = "🧘‍♂️ Relax and tuck in"
+                if "Negative" in strategy and lap == laps - 1: note = "🚀 Empty the tank!"
+                if "Even" in strategy: note = "⏱️ Lock in pace"
+
+                pacing_plan.append({
+                    "Lap": f"Lap {lap + 1}",
+                    "400m Target": format_time(target_lap_sec),
+                    "Total Time": format_time(cumulative_time),
+                    "Coach's Note": note
+                })
+
+            st.dataframe(pd.DataFrame(pacing_plan), hide_index=True, use_container_width=True)
+            
+            # A quick sanity check to prove the math works out to the user's exact input
+            st.caption(f"**Calculated Finish Time:** {format_time(cumulative_time)} (Target: {track_goal})")
+            
+            # Explanation of the strategy
+            if "Fast" in strategy:
+                st.info("**The Front Runner Strategy:** This requires burning early energy to get out of traffic and dictate the pace. Expect laps 3 (for 1600m) or 5-6 (for 3200m) to feel extremely heavy.")
+            elif "Negative" in strategy:
+                st.success("**The Sit & Kick Strategy:** The most mathematically efficient way to run a PR. The goal is to feel completely relaxed through the halfway point, then hunt people down in the second half.")
+        else:
+            st.warning("Please enter a valid goal time to see the pacing chart.")
