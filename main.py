@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import datetime
 
 # --- HELPER FUNCTIONS (The Brains) ---
 def get_live_conditions():
@@ -204,8 +205,8 @@ st.sidebar.divider()
 # ==========================================
 # 🍂 CROSS COUNTRY DASHBOARD
 # ==========================================
-if app_mode == "🍂 Cross Country":
-    st.title("🍂 Cross Country Dashboard")
+if app_mode == "Cross Country":
+    st.title("Cross Country Dashboard")
     
     # --- SIDEBAR CONTROLS (XC Specific Only) ---
     st.sidebar.header("📍 Course Selection")
@@ -215,7 +216,7 @@ if app_mode == "🍂 Cross Country":
 
     st.sidebar.divider()
 
-    st.sidebar.header("⚙️ Race Day Conditions")
+    st.sidebar.header("Race Day Conditions")
     st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
     race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
     race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
@@ -224,9 +225,9 @@ if app_mode == "🍂 Cross Country":
     temp_penalty_sec = get_temp_penalty(race_temp)
 
     # --- XC TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
-        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer"
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "Team Analytics", "Goal Setter", "Summer Training", 
+        "Workout Ideas", "Record Board", "College Matcher", "Pack Analyzer", "Race Fueling"
     ])
 
     with tab1:
@@ -549,7 +550,59 @@ if app_mode == "🍂 Cross Country":
                 st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
                 st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
                 st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
+    with tab8:
+        st.header("🍎 Race-Day Fueling Timeline")
+        st.write("Timing your nutrition is just as important as the food itself. Enter your race start time below to generate a customized, scientifically-backed fueling and hydration schedule.")
+        st.divider()
 
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("Race Details")
+            race_time = st.time_input("When does the gun go off?", datetime.time(9, 0))
+            
+            # Convert to a datetime object for math
+            race_datetime = datetime.datetime.combine(datetime.date.today(), race_time)
+            
+        with col2:
+            st.subheader("📋 Your Fueling Schedule")
+            
+            timeline_data = [
+                {
+                    "Time": "Night Before",
+                    "Action": "Dinner",
+                    "Fueling Focus": "High carb, moderate protein, low fat. Hydrate well. (e.g., Pasta with chicken, rice bowl). Avoid trying new foods!"
+                },
+                {
+                    "Time": (race_datetime - datetime.timedelta(hours=3)).strftime("%I:%M %p"),
+                    "Action": "Pre-Race Meal",
+                    "Fueling Focus": "Easily digestible carbs, low fiber/fat to prevent stomach issues. (e.g., Oatmeal, bagel with peanut butter, banana)."
+                },
+                {
+                    "Time": (race_datetime - datetime.timedelta(hours=1, minutes=30)).strftime("%I:%M %p"),
+                    "Action": "Top Off & Hydrate",
+                    "Fueling Focus": "Sip 8-12 oz of water or sports drink. Stop chugging to avoid sloshing. Eat a simple carb snack if hungry (e.g., graham crackers, fruit)."
+                },
+                {
+                    "Time": (race_datetime - datetime.timedelta(minutes=30)).strftime("%I:%M %p"),
+                    "Action": "Final Prep",
+                    "Fueling Focus": "Sip water only to thirst. Optional: Energy chews or a few swigs of sports drink for a final blood sugar bump. Hit the bathroom."
+                },
+                {
+                    "Time": race_time.strftime("%I:%M %p"),
+                    "Action": "🔫 RACE TIME",
+                    "Fueling Focus": "Trust your training and execute!"
+                },
+                {
+                    "Time": (race_datetime + datetime.timedelta(minutes=45)).strftime("%I:%M %p"),
+                    "Action": "Recovery Window",
+                    "Fueling Focus": "Aim for a 3:1 Carb-to-Protein ratio within 60 mins to rebuild muscle and restock glycogen. (e.g., Chocolate milk, protein bar, PB&J)."
+                }
+            ]
+
+            st.dataframe(pd.DataFrame(timeline_data), hide_index=True, use_container_width=True)
+            
+            st.info("💡 **Coach's Note:** Everyone's stomach is different. Practice this exact timeline during a hard practice or a minor meet before you try it at State!")
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
 # ==========================================
