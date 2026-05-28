@@ -550,7 +550,7 @@ if app_mode == "Cross Country":
                 st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
                 st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
                 st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
-    with tab8:
+with tab8:
         st.header("🍎 Race-Day Fueling Timeline")
         st.write("Timing your nutrition is just as important as the food itself. Enter your race start time below to generate a customized, scientifically-backed fueling and hydration schedule.")
         st.divider()
