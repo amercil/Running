@@ -205,8 +205,8 @@ st.sidebar.divider()
 # ==========================================
 # 🍂 CROSS COUNTRY DASHBOARD
 # ==========================================
-if app_mode == "Cross Country":
-    st.title("Cross Country Dashboard")
+if app_mode == "🍂 Cross Country":
+    st.title("🍂 Cross Country Dashboard")
     
     # --- SIDEBAR CONTROLS (XC Specific Only) ---
     st.sidebar.header("📍 Course Selection")
@@ -216,7 +216,7 @@ if app_mode == "Cross Country":
 
     st.sidebar.divider()
 
-    st.sidebar.header("Race Day Conditions")
+    st.sidebar.header("⚙️ Race Day Conditions")
     st.sidebar.write("Calculations are baselined for your home altitude (4,500 ft).")
     race_temp = st.sidebar.slider("Race Temp (°F)", min_value=20, max_value=105, value=55, step=1)
     race_elevation = st.sidebar.number_input("Race Elevation (ft)", min_value=0, max_value=12000, value=4500, step=100)
@@ -226,8 +226,8 @@ if app_mode == "Cross Country":
 
     # --- XC TABS ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "Team Analytics", "Goal Setter", "Summer Training", 
-        "Workout Ideas", "Record Board", "College Matcher", "Pack Analyzer", "Race Fueling"
+        "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
+        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer", "🍎 Race Fueling"
     ])
 
     with tab1:
@@ -550,7 +550,8 @@ if app_mode == "Cross Country":
                 st.metric("New Team Average", format_time(new_avg_B), delta=f"-{format_time(current_avg - new_avg_B)}", delta_color="inverse")
                 st.metric("New 1-5 Gap", format_time(new_gap_B), delta=f"-{format_time(current_gap - new_gap_B)} (Better)", delta_color="inverse")
                 st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
-with tab8:
+
+    with tab8:
         st.header("🍎 Race-Day Fueling Timeline")
         st.write("Timing your nutrition is just as important as the food itself. Enter your race start time below to generate a customized, scientifically-backed fueling and hydration schedule.")
         st.divider()
@@ -603,6 +604,7 @@ with tab8:
             st.dataframe(pd.DataFrame(timeline_data), hide_index=True, use_container_width=True)
             
             st.info("💡 **Coach's Note:** Everyone's stomach is different. Practice this exact timeline during a hard practice or a minor meet before you try it at State!")
+
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
 # ==========================================
