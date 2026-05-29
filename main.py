@@ -226,9 +226,9 @@ if app_mode == "🍂 Cross Country":
 
     # --- XC TABS ---
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
-        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", 
-        "📈 Pack Analyzer", "🍎 Race Fueling", "💧 Hydration Engine"
+        "Team Analytics", "Goal Setter", "Summer Training", 
+        "Interval Math", "Record Board", "College Matcher", 
+        "Pack Analyzer", "Race Fueling", "Hydration Engine"
     ])
 
     with tab1:
@@ -327,7 +327,7 @@ if app_mode == "🍂 Cross Country":
             st.info("Awaiting roster upload. You can now drop raw Athletic.net or MileSplit CSV exports directly into the app.")
 
     with tab2:
-        st.header("🎯 The Sub-X Goal Setter")
+        st.header("The Sub-X Goal Setter")
         st.write(f"This tool calculates the track fitness required to hit a specific 5K goal. It automatically factors in your current sidebar settings (**{selected_course}**, **{race_temp}°F**, and **{race_elevation}ft** elevation).")
         st.divider()
         
@@ -343,7 +343,7 @@ if app_mode == "🍂 Cross Country":
             col_c.metric("3200m Fitness Required", t3200)
 
     with tab3:
-        st.header("📅 Summer Base Phase Calendar")
+        st.header("Summer Base Phase Calendar")
         st.write("Upload your coach's master CSV training plan to generate an interactive digital calendar and track your team's weekly mileage volume.")
         st.divider()
         
@@ -368,19 +368,19 @@ if app_mode == "🍂 Cross Country":
                     plan_df['Week Number'] = plan_df['Date Object'].dt.isocalendar().week
                     
                     display_df = plan_df.drop(columns=['Date Object', 'Week Number'])
-                    st.subheader("🗓️ Daily Training Schedule")
+                    st.subheader("Daily Training Schedule")
                     st.dataframe(display_df, use_container_width=True)
                     
                     st.divider()
-                    st.subheader("📈 Weekly Mileage Progression")
+                    st.subheader("Weekly Mileage Progression")
                     weekly_miles = plan_df.groupby('Week Number')['Miles'].sum().reset_index()
                     weekly_miles['Week'] = ["Week " + str(i+1) for i in range(len(weekly_miles))]
                     st.bar_chart(weekly_miles.set_index('Week')['Miles'], color="#3366cc")
                 except Exception:
-                    st.error("⚠️ There was an issue reading the dates.")
+                    st.error("There was an issue reading the dates.")
 
     with tab4:
-        st.header("⏱️ Interval Math Engine")
+        st.header("Interval Math Engine")
         st.write("Enter an athlete's target 5K time to automatically calculate standard workout splits and active recovery times based on cross-country physiology.")
         st.divider()
 
@@ -439,11 +439,11 @@ if app_mode == "🍂 Cross Country":
             
             with int_col2:
                 st.info(f"**Suggested Volume:** {reps_suggested}")
-                st.metric("🎯 Target Split (per rep)", format_time(rep_time))
-                st.metric("⏱️ Suggested Recovery Time", format_time(recovery))
+                st.metric("Target Split (per rep)", format_time(rep_time))
+                st.metric("Suggested Recovery Time", format_time(recovery))
 
     with tab5:
-        st.header("🏆 Windsor All-Time Record Board")
+        st.header("Windsor All-Time Record Board")
         st.divider()
         rb_col1, rb_col2 = st.columns([2, 1])
 
@@ -466,7 +466,7 @@ if app_mode == "🍂 Cross Country":
                     st.info(f"Keep grinding! You need to drop **{format_time(pr_sec - tenth_place_sec)}** to bump the #10 spot.")
 
     with tab6:
-        st.header("🎓 College Recruiting Matcher")
+        st.header("College Recruiting Matcher")
         st.write("Enter an athlete's personal bests to see where they currently align with NCAA and NAIA program standards. *Note: These are general baseline standards for walk-on or roster consideration. Actual requirements vary heavily by school.*")
         st.divider()
 
@@ -498,7 +498,7 @@ if app_mode == "🍂 Cross Country":
                 st.info("💡 **Coach's Tip:** Hitting a time standard is just the first step! College coaches also look at grades, character, and consistency across multiple events. Be sure to fill out recruiting questionnaires on college athletic websites early.")
 
     with tab7:
-        st.header("📈 The 1-to-5 Pack Analyzer")
+        st.header("The 1-to-5 Pack Analyzer")
         st.write("Cross country meets are won at the back of the pack. Use this tool to show your athletes exactly why closing the gap between Runner #1 and Runner #5 is mathematically more important than your front-runner getting faster.")
         st.divider()
 
@@ -553,7 +553,7 @@ if app_mode == "🍂 Cross Country":
                 st.success(f"🏆 **Estimated Points Saved:** ~{points_saved_B} points (Race density is thick in the middle)")
 
     with tab8:
-        st.header("🍎 Race-Day Fueling Timeline")
+        st.header("Race-Day Fueling Timeline")
         st.write("Timing your nutrition is just as important as the food itself. Enter your race start time below to generate a customized, scientifically-backed fueling and hydration schedule.")
         st.divider()
 
@@ -567,7 +567,7 @@ if app_mode == "🍂 Cross Country":
             race_datetime = datetime.datetime.combine(datetime.date.today(), race_time)
             
         with col2:
-            st.subheader("📋 Your Fueling Schedule")
+            st.subheader("Your Fueling Schedule")
             
             timeline_data = [
                 {
@@ -621,7 +621,7 @@ if app_mode == "🍂 Cross Country":
             fluids_drank = st.number_input("Fluids Drank During Run (fl oz)", min_value=0, max_value=100, value=16, step=1)
 
         with col_hyd2:
-            st.subheader("🧪 Your Hydration Prescription")
+            st.subheader("Your Hydration Prescription")
             if pre_weight >= post_weight:
                 # Calculate total fluid lost
                 weight_lost_lbs = pre_weight - post_weight
@@ -649,12 +649,12 @@ if app_mode == "🍂 Cross Country":
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
 # ==========================================
-elif app_mode == "👟 Track & Field":
-    st.title("👟 Track & Field Dashboard")
+elif app_mode == "Track & Field":
+    st.title("Track & Field Dashboard")
     st.write("Welcome to the Track season! Let's get these athletes peaking at the right time.")
     st.divider()
 
-    st.header("⏱️ Distance Pacing & Strategy Calculator")
+    st.header("Distance Pacing & Strategy Calculator")
     st.write("Calculate exact 400m lap splits for the 1600m and 3200m based on different race execution strategies.")
     st.divider()
 
