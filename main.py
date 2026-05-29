@@ -225,9 +225,10 @@ if app_mode == "🍂 Cross Country":
     temp_penalty_sec = get_temp_penalty(race_temp)
 
     # --- XC TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "📊 Team Analytics", "🎯 Goal Setter", "📅 Summer Training", 
-        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", "📈 Pack Analyzer", "🍎 Race Fueling"
+        "⏱️ Interval Math", "🏆 Record Board", "🎓 College Matcher", 
+        "📈 Pack Analyzer", "🍎 Race Fueling", "💧 Hydration Engine"
     ])
 
     with tab1:
@@ -604,6 +605,46 @@ if app_mode == "🍂 Cross Country":
             st.dataframe(pd.DataFrame(timeline_data), hide_index=True, use_container_width=True)
             
             st.info("💡 **Coach's Note:** Everyone's stomach is different. Practice this exact timeline during a hard practice or a minor meet before you try it at State!")
+
+    with tab9:
+        st.header("💧 Sweat Rate & Hydration Engine")
+        st.write("Running in the dry Colorado heat means you lose water faster than you think. Calculate your exact sweat rate to dial in your summer hydration strategy.")
+        st.divider()
+
+        col_hyd1, col_hyd2 = st.columns([1, 1])
+
+        with col_hyd1:
+            st.subheader("Run Data")
+            pre_weight = st.number_input("Pre-Run Weight (lbs)", min_value=50.0, max_value=300.0, value=140.0, step=0.1)
+            post_weight = st.number_input("Post-Run Weight (lbs)", min_value=50.0, max_value=300.0, value=138.5, step=0.1)
+            run_duration = st.number_input("Run Duration (minutes)", min_value=10, max_value=300, value=60, step=5)
+            fluids_drank = st.number_input("Fluids Drank During Run (fl oz)", min_value=0, max_value=100, value=16, step=1)
+
+        with col_hyd2:
+            st.subheader("🧪 Your Hydration Prescription")
+            if pre_weight >= post_weight:
+                # Calculate total fluid lost
+                weight_lost_lbs = pre_weight - post_weight
+                weight_lost_oz = weight_lost_lbs * 16.0
+                total_fluid_lost_oz = weight_lost_oz + fluids_drank
+                
+                # Calculate sweat rate
+                run_hours = run_duration / 60.0
+                sweat_rate_per_hour = total_fluid_lost_oz / run_hours
+                
+                st.metric("Estimated Sweat Rate", f"{round(sweat_rate_per_hour, 1)} oz / hour")
+                
+                st.markdown("### How to Fuel Next Time:")
+                prescription_data = [
+                    {"Timing": "2 Hours Before", "Action": f"Drink {round(sweat_rate_per_hour * 0.5)} oz of water or electrolytes"},
+                    {"Timing": "During the Run", "Action": f"Aim for {round(sweat_rate_per_hour / 4)} oz every 15 mins"},
+                    {"Timing": "Post-Run Recovery", "Action": f"Drink {round(weight_lost_oz * 1.5)} oz within 2 hours to fully rehydrate"}
+                ]
+                st.dataframe(pd.DataFrame(prescription_data), hide_index=True, use_container_width=True)
+                
+                st.info("💡 **Coach's Tip:** If you are losing more than **2%** of your body weight on a single run, you are severely dehydrating and your heart rate will spike to compensate. Carry a handheld water bottle on days over 80°F!")
+            else:
+                st.warning("⚠️ Post-run weight should be less than or equal to pre-run weight for this calculation to work properly.")
 
 # ==========================================
 # 👟 TRACK & FIELD DASHBOARD
